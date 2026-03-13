@@ -6,8 +6,33 @@ import { computeMetrics } from '../lib/computeMetrics'
 import { generateRecommendations } from '../lib/generateRecommendations'
 import { CSV_COLUMNS } from '../constants/csvColumns'
 
+function parseDate(dateStr) {
+  if (!dateStr) return null
+  const s = dateStr.trim()
+
+  // Try ISO format: YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const d = new Date(s)
+    if (!isNaN(d)) return d
+  }
+
+  // Try European formats: DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
+  const euro = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/)
+  if (euro) {
+    const d = new Date(Number(euro[3]), Number(euro[2]) - 1, Number(euro[1]))
+    if (!isNaN(d)) return d
+  }
+
+  // Try US format: MM/DD/YYYY (fallback)
+  const us = new Date(s)
+  if (!isNaN(us)) return us
+
+  return null
+}
+
 function getMonday(dateStr) {
-  const d = new Date(dateStr)
+  const d = parseDate(dateStr)
+  if (!d) return null
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   const monday = new Date(d.setDate(diff))
@@ -199,7 +224,7 @@ export default function Upload() {
         const sessionRows = sessions.map(s => ({
           player_id: player.id,
           week_start_date: weekStart,
-          session_date: s[CSV_COLUMNS.date] || null,
+          session_date: (() => { const pd = parseDate(s[CSV_COLUMNS.date]); return pd ? pd.toISOString().split('T')[0] : null })(),
           data: s,
         }))
 
