@@ -64,7 +64,7 @@ export default function Dashboard() {
 
       {/* TPI Card */}
       <div className="bg-slate-800 rounded-xl p-6 mb-6">
-        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Team Performance Index</div>
+        <div className="text-xs uppercase tracking-wide text-slate-400 mb-1">Team Performance Index (avg)</div>
         <div className={`text-4xl font-bold ${tpiColor(tpi)}`}>
           {tpi != null ? (tpi / 10).toFixed(1) : '—'}
           <span className="text-lg text-slate-400"> / 10</span>
@@ -86,7 +86,7 @@ export default function Dashboard() {
               <tr className="text-slate-400 border-b border-slate-700 text-xs uppercase tracking-wide">
                 <th className="text-left p-3">Player</th>
                 <th className="text-left p-3">Pos</th>
-                <th className="text-right p-3">API</th>
+                <th className="text-right p-3">PI</th>
                 <th className="text-right p-3">RTT</th>
                 <th className="text-right p-3">RS</th>
                 <th className="text-right p-3">TMI</th>

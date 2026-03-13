@@ -21,6 +21,7 @@ export default function PlayerDetail() {
   const pageRef = useRef(null)
 
   const latest = history.length ? history[history.length - 1] : null
+  const explanations = latest?.explanations || null
 
   useEffect(() => {
     if (!id) return
@@ -77,7 +78,7 @@ export default function PlayerDetail() {
   // Chart data
   const chartData = history.map(h => ({
     week: h.week_start_date,
-    API: h.api != null ? (h.api / 10).toFixed(1) : null,
+    Performance: h.api != null ? (h.api / 10).toFixed(1) : null,
     RTT: h.rtt != null ? (h.rtt / 10).toFixed(1) : null,
     RS: h.rs != null ? (h.rs / 10).toFixed(1) : null,
     TMI: h.tmi != null ? (h.tmi / 10).toFixed(1) : null,
@@ -113,12 +114,59 @@ export default function PlayerDetail() {
         <>
           {/* Section A: Index Hero Cards */}
           <div className="flex flex-wrap gap-3 mb-6">
-            <IndexCard label="API" dbKey="api" value={latest.api} />
-            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} />
-            <IndexCard label="RS" dbKey="rs" value={latest.rs} />
-            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} />
+            <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} />
+            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
+            <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} />
+            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} />
             <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} inverted />
           </div>
+
+          {/* Fatigue Index & ACWR NRG Summary */}
+          {(latest.fatigue_index != null || latest.acwr_nrg != null) && (
+            <div className="bg-slate-800 rounded-xl p-4 mb-6">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-400 mb-3">Internal/External Load Balance</h2>
+              <div className="flex flex-wrap gap-6 text-sm">
+                {latest.acwr_nrg != null && (
+                  <div>
+                    <span className="text-slate-400">ACWR NRG: </span>
+                    <span className="font-semibold" style={{
+                      color: latest.acwr_nrg >= 0.8 && latest.acwr_nrg <= 1.3 ? '#22c55e'
+                        : latest.acwr_nrg > 1.5 ? '#ef4444' : '#f59e0b'
+                    }}>
+                      {Number(latest.acwr_nrg).toFixed(2)}
+                    </span>
+                  </div>
+                )}
+                {latest.fatigue_index != null && (
+                  <div>
+                    <span className="text-slate-400">Fatigue Index: </span>
+                    <span className="font-semibold" style={{
+                      color: latest.fatigue_index <= -0.1 ? '#22c55e'
+                        : latest.fatigue_index <= 5.0 ? '#f59e0b' : '#ef4444'
+                    }}>
+                      {Number(latest.fatigue_index).toFixed(2)}
+                    </span>
+                    <span className="text-xs text-slate-500 ml-1">
+                      ({latest.fatigue_index <= -0.1 ? 'Low fatigue'
+                        : latest.fatigue_index <= 0.5 ? 'Neutral'
+                        : latest.fatigue_index <= 5.0 ? 'Mild fatigue' : 'High fatigue'})
+                    </span>
+                  </div>
+                )}
+                {latest.monotony != null && (
+                  <div>
+                    <span className="text-slate-400">Monotony: </span>
+                    <span className="font-semibold" style={{
+                      color: latest.monotony <= 1.5 ? '#22c55e'
+                        : latest.monotony <= 2.0 ? '#f59e0b' : '#ef4444'
+                    }}>
+                      {isFinite(latest.monotony) ? Number(latest.monotony).toFixed(2) : 'INF'}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Section B: Load Achievement Panel */}
           <div className="bg-slate-800 rounded-xl p-4 mb-6">
@@ -142,7 +190,7 @@ export default function PlayerDetail() {
                 <YAxis domain={[0, 10]} tick={{ fill: '#94a3b8', fontSize: 10 }} />
                 <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: 8, color: '#fff' }} />
                 <Legend />
-                <Line type="monotone" dataKey="API" stroke="#E8530A" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="Performance" stroke="#E8530A" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="RTT" stroke="#3b82f6" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="RS" stroke="#22c55e" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="TMI" stroke="#a855f7" strokeWidth={2} dot={false} />
