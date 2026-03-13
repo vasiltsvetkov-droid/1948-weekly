@@ -10,12 +10,12 @@ export default function RecommendationCard({ rec }) {
 
   return (
     <div
-      className="bg-slate-800 rounded-lg p-4 shadow-sm"
-      style={{ borderLeft: `4px solid ${borderColor}` }}
+      className="glass-card p-4"
+      style={{ borderLeft: `4px solid ${borderColor}`, borderRadius: '12px' }}
     >
-      <h4 className="font-semibold text-sm mb-2">{rec.title}</h4>
-      <p className="text-sm text-slate-300 leading-relaxed mb-2">{rec.text}</p>
-      <p className="text-xs text-slate-500 italic">{rec.ref}</p>
+      <h4 className="font-semibold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{rec.title}</h4>
+      <p className="text-sm leading-relaxed mb-2" style={{ color: 'var(--text-secondary)' }}>{rec.text}</p>
+      <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{rec.ref}</p>
     </div>
   )
 }

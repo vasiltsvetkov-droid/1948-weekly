@@ -24,7 +24,7 @@ export default function CircularGauge({ value, max = 10, size = 80, inverted = f
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="#334155"
+        stroke="rgba(255,255,255,0.1)"
         strokeWidth="6"
       />
       <circle

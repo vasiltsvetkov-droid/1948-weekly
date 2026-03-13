@@ -43,7 +43,7 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
   const { rs, rsExplanation }     = computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails)
   const { tmi, tmiExplanation }   = computeTMI(monotony)
   const { performance, perfExplanation } = computePerformanceIndex(rtt, rs, tmi)
-  const injury_risk = computeInjuryRisk(acwr, totals, history, monotony, effectiveMaxSpeed, refs)
+  const { injury_risk, injuryRiskExplanation } = computeInjuryRisk(acwr, totals, history, monotony, effectiveMaxSpeed, refs)
 
   const flags = [...acwr_flags]
   if (!personalMaxSpeed) flags.push('no_personal_max_speed')
@@ -102,6 +102,7 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
       rs: rsExplanation,
       tmi: tmiExplanation,
       performance: perfExplanation,
+      injury_risk: injuryRiskExplanation,
     },
   }
 }
@@ -533,10 +534,12 @@ function computePerformanceIndex(rtt, rs, tmi) {
  * @param {number|null} monotony - Training monotony
  * @param {number} personalMaxSpeed - Max speed
  * @param {Object} refs - Match references
- * @returns {number} Injury risk score 0-100 (higher = more risk)
+ * @returns {{ injury_risk: number, injuryRiskExplanation: string }}
  */
 function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, refs) {
   let risk = 0
+  const parts = []
+  const factors = []
 
   // 1. ACWR Total (30%)
   const a = acwr.total_distance
@@ -546,6 +549,11 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
     : a > 1.3 ? 40
     : 0
   risk += acwrRisk * 0.30
+  if (a !== null) {
+    if (a > 1.5) factors.push(`ACWR total distance at ${a.toFixed(2)} is in the danger zone (>1.5), associated with 2–4× elevated non-contact injury risk (Gabbett 2016; Hulin et al. 2016)`)
+    else if (a > 1.3) factors.push(`ACWR total distance at ${a.toFixed(2)} is in the caution zone (1.3–1.5)`)
+    else factors.push(`ACWR total distance at ${a.toFixed(2)} is within the optimal 0.8–1.3 range`)
+  }
 
   // 2. Mechanical spike (25%)
   const avgMech = history.length
@@ -558,6 +566,9 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
     : mechRatio > 1.3 ? 40
     : 0
   risk += mechRisk * 0.25
+  if (mechRatio !== null && mechRatio > 1.3) {
+    factors.push(`Mechanical load (acc+dec) exceeds the 4-week average by ${Math.round((mechRatio - 1) * 100)}%, increasing eccentric overload risk on hamstrings and quadriceps (Dalen et al. 2016)`)
+  }
 
   // 3. Training Monotony (20%)
   const monRisk = monotony === null ? 20
@@ -567,6 +578,9 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
     : monotony > 1.5 ? 40
     : 0
   risk += monRisk * 0.20
+  if (monotony !== null && isFinite(monotony) && monotony > 2.0) {
+    factors.push(`Training monotony at ${monotony.toFixed(2)} exceeds the 2.0 threshold associated with overreaching, illness and injury (Foster et al. 2001)`)
+  }
 
   // 4. Speed Deficit (15%)
   const speedRisk = personalMaxSpeed > 0
@@ -575,12 +589,40 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
        : 0)
     : 20
   risk += speedRisk * 0.15
+  if (personalMaxSpeed > 0 && totals.top_speed / personalMaxSpeed < 0.90) {
+    factors.push(`Top speed this week (${totals.top_speed.toFixed(1)} km/h) did not reach 90% of recorded maximum (${personalMaxSpeed.toFixed(1)} km/h), indicating insufficient neuromuscular preparation for match-intensity sprinting (Issurin 2008)`)
+  }
 
   // 5. Low Chronic Load (10%)
   const chronRisk = history.length < 2 ? 50
     : history.length < 4 ? 20
     : 0
   risk += chronRisk * 0.10
+  if (history.length < 4) {
+    factors.push(`Limited training history (${history.length} prior weeks) reduces ACWR reliability — confidence increases with 4+ weeks of data`)
+  }
 
-  return Math.round(Math.min(100, risk))
+  const finalRisk = Math.round(Math.min(100, risk))
+  const display = (finalRisk / 10).toFixed(1)
+
+  if (finalRisk >= 60) {
+    parts.push(`Injury Risk score of ${display}/10 indicates elevated risk from multiple concurrent factors.`)
+  } else if (finalRisk >= 40) {
+    parts.push(`Injury Risk score of ${display}/10 indicates moderate risk. Monitoring is advised.`)
+  } else {
+    parts.push(`Injury Risk score of ${display}/10 indicates low risk. Current training load is well-managed.`)
+  }
+
+  if (factors.length > 0) {
+    parts.push(`Key factors: ${factors.join('. ')}.`)
+  }
+
+  if (finalRisk >= 50) {
+    parts.push('A full wellness assessment (Hooper Index, CMJ flight time, morning HRV) is recommended before the next high-intensity session. Scheduling a rest day on MD+2 is associated with 2–3× lower non-contact injury rates (Dupont et al. 2010).')
+  }
+
+  return {
+    injury_risk: finalRisk,
+    injuryRiskExplanation: parts.join(' '),
+  }
 }
