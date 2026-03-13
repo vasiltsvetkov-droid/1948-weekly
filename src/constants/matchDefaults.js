@@ -1,0 +1,86 @@
+export const MATCH_DEFAULTS = {
+  CB: {
+    total_distance: 10850,
+    hsr: 475,
+    sprint: 200,
+    hmld: 1400,
+    nrg: 5800,
+    acc: 140,
+    dec: 130,
+  },
+  FB: {
+    total_distance: 11750,
+    hsr: 850,
+    sprint: 320,
+    hmld: 1700,
+    nrg: 6200,
+    acc: 160,
+    dec: 150,
+  },
+  CM: {
+    total_distance: 12250,
+    hsr: 750,
+    sprint: 280,
+    hmld: 1600,
+    nrg: 6500,
+    acc: 170,
+    dec: 155,
+  },
+  WM: {
+    total_distance: 11750,
+    hsr: 1050,
+    sprint: 400,
+    hmld: 1800,
+    nrg: 6300,
+    acc: 165,
+    dec: 150,
+  },
+  ST: {
+    total_distance: 10750,
+    hsr: 750,
+    sprint: 300,
+    hmld: 1500,
+    nrg: 5900,
+    acc: 155,
+    dec: 140,
+  },
+  GK: {
+    total_distance: 5500,
+    hsr: 100,
+    sprint: 40,
+    hmld: 600,
+    nrg: 3000,
+    acc: 60,
+    dec: 55,
+  },
+}
+
+export const METRIC_LABELS = {
+  total_distance: 'Total Distance',
+  hsr: 'HSR (Zone 4+5)',
+  sprint: 'Sprint (Zone 5)',
+  hmld: 'HMLD',
+  nrg: 'NRG Expenditure',
+  acc: 'Accelerations',
+  dec: 'Decelerations',
+}
+
+export const METRIC_UNITS = {
+  total_distance: 'm',
+  hsr: 'm',
+  sprint: 'm',
+  hmld: 'm',
+  nrg: 'J/kg',
+  acc: 'count',
+  dec: 'count',
+}
+
+export const OPTIMAL_LOAD_PCT = {
+  total_distance: { min: 270, max: 320 },
+  hsr:            { min: 300, max: 350 },
+  sprint:         { min: 300, max: 310 },
+  hmld:           { min: 250, max: 350 },
+  nrg:            { min: 270, max: 320 },
+  acc:            { min: 300, max: 400 },
+  dec:            { min: 300, max: 400 },
+}
