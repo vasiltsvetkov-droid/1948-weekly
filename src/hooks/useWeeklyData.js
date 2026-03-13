@@ -47,7 +47,10 @@ export function useSquadWeek(weekStartDate) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!weekStartDate) return
+    if (!weekStartDate) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     supabase
       .from('weekly_aggregates')

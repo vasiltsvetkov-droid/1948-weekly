@@ -273,54 +273,59 @@ export default function Upload() {
           data: s,
         }))
 
-        await supabase.from('weekly_sessions').insert(sessionRows)
+        const { error: sessErr } = await supabase.from('weekly_sessions').insert(sessionRows)
+        if (sessErr) throw new Error(`weekly_sessions insert: ${sessErr.message}`)
+
+        // Sanitize numeric values (NaN/Infinity → null)
+        const num = v => (typeof v === 'number' && isFinite(v)) ? v : null
 
         // Upsert weekly_aggregates
         const aggregateRow = {
           player_id: player.id,
           week_start_date: weekStart,
-          total_distance: metrics.total_distance,
-          hsr_distance: metrics.hsr_distance,
-          sprint_distance: metrics.sprint_distance,
-          hmld: metrics.hmld,
-          total_nrg: metrics.total_nrg,
-          nrg_above_th: metrics.nrg_above_th,
-          total_accelerations: metrics.total_accelerations,
-          total_decelerations: metrics.total_decelerations,
-          mechanical_load: metrics.mechanical_load,
-          equivalent_distance: metrics.equivalent_distance,
-          high_efforts: metrics.high_efforts,
-          avg_metabolic_power: metrics.avg_metabolic_power,
-          max_metabolic_power: metrics.max_metabolic_power,
-          top_speed: metrics.top_speed,
-          avg_speed: metrics.avg_speed,
-          intensity_indicator: metrics.intensity_indicator,
-          avg_hr: metrics.avg_hr,
-          max_hr: metrics.max_hr,
-          heart_exertion: metrics.heart_exertion,
-          heart_exertion_above_th: metrics.heart_exertion_above_th,
-          acwr_total_distance: metrics.acwr_total_distance,
-          acwr_sprint: metrics.acwr_sprint,
-          acwr_mechanical: metrics.acwr_mechanical,
-          api: metrics.api,
-          rtt: metrics.rtt,
-          rs: metrics.rs,
-          tmi: metrics.tmi,
-          injury_risk: metrics.injury_risk,
-          monotony: isFinite(metrics.monotony) ? metrics.monotony : null,
-          load_pct_total_distance: metrics.load_pct_total_distance,
-          load_pct_hsr: metrics.load_pct_hsr,
-          load_pct_sprint: metrics.load_pct_sprint,
-          load_pct_hmld: metrics.load_pct_hmld,
-          load_pct_nrg: metrics.load_pct_nrg,
-          load_pct_acc: metrics.load_pct_acc,
-          load_pct_dec: metrics.load_pct_dec,
+          total_distance: num(metrics.total_distance),
+          hsr_distance: num(metrics.hsr_distance),
+          sprint_distance: num(metrics.sprint_distance),
+          hmld: num(metrics.hmld),
+          total_nrg: num(metrics.total_nrg),
+          nrg_above_th: num(metrics.nrg_above_th),
+          total_accelerations: num(metrics.total_accelerations),
+          total_decelerations: num(metrics.total_decelerations),
+          mechanical_load: num(metrics.mechanical_load),
+          equivalent_distance: num(metrics.equivalent_distance),
+          high_efforts: num(metrics.high_efforts),
+          avg_metabolic_power: num(metrics.avg_metabolic_power),
+          max_metabolic_power: num(metrics.max_metabolic_power),
+          top_speed: num(metrics.top_speed),
+          avg_speed: num(metrics.avg_speed),
+          intensity_indicator: num(metrics.intensity_indicator),
+          avg_hr: num(metrics.avg_hr),
+          max_hr: num(metrics.max_hr),
+          heart_exertion: num(metrics.heart_exertion),
+          heart_exertion_above_th: num(metrics.heart_exertion_above_th),
+          acwr_total_distance: num(metrics.acwr_total_distance),
+          acwr_sprint: num(metrics.acwr_sprint),
+          acwr_mechanical: num(metrics.acwr_mechanical),
+          api: num(metrics.api),
+          rtt: num(metrics.rtt),
+          rs: num(metrics.rs),
+          tmi: num(metrics.tmi),
+          injury_risk: num(metrics.injury_risk),
+          monotony: num(metrics.monotony),
+          load_pct_total_distance: num(metrics.load_pct_total_distance),
+          load_pct_hsr: num(metrics.load_pct_hsr),
+          load_pct_sprint: num(metrics.load_pct_sprint),
+          load_pct_hmld: num(metrics.load_pct_hmld),
+          load_pct_nrg: num(metrics.load_pct_nrg),
+          load_pct_acc: num(metrics.load_pct_acc),
+          load_pct_dec: num(metrics.load_pct_dec),
           daily_loads: metrics.daily_loads,
         }
 
-        await supabase
+        const { error: aggErr } = await supabase
           .from('weekly_aggregates')
           .upsert(aggregateRow, { onConflict: 'player_id,week_start_date' })
+        if (aggErr) throw new Error(`weekly_aggregates upsert: ${aggErr.message}`)
 
         processedIds.push(player.id)
       }
