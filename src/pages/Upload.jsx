@@ -6,24 +6,66 @@ import { computeMetrics } from '../lib/computeMetrics'
 import { generateRecommendations } from '../lib/generateRecommendations'
 import { CSV_COLUMNS } from '../constants/csvColumns'
 
+// Normalize a header string for fuzzy matching: lowercase, strip non-ascii, collapse whitespace
+function normalizeHeader(h) {
+  return h
+    .replace(/[^\x20-\x7E]/g, '') // strip non-ASCII (handles mojibake)
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
+}
+
+// Build a mapping from actual CSV headers to our expected column names
+function buildHeaderMap(actualHeaders) {
+  const expectedEntries = Object.values(CSV_COLUMNS)
+  const normalizedExpected = expectedEntries.map(h => ({ original: h, normalized: normalizeHeader(h) }))
+
+  const map = {} // actual header -> expected header
+  for (const actual of actualHeaders) {
+    const norm = normalizeHeader(actual)
+    const match = normalizedExpected.find(e => e.normalized === norm)
+    if (match) {
+      map[actual] = match.original
+    }
+  }
+  return map
+}
+
+// Remap a CSV row's keys from actual (possibly mangled) headers to expected column names
+function remapRow(row, headerMap) {
+  const out = {}
+  for (const [actualKey, value] of Object.entries(row)) {
+    const mappedKey = headerMap[actualKey] || actualKey
+    out[mappedKey] = value
+  }
+  return out
+}
+
 function parseDate(dateStr) {
-  if (!dateStr) return null
+  if (!dateStr || dateStr === 'NA') return null
   const s = dateStr.trim()
 
-  // Try ISO format: YYYY-MM-DD
+  // DD.MM or DD/MM (no year — assume current year)
+  const shortMatch = s.match(/^(\d{1,2})[\/.](\d{1,2})$/)
+  if (shortMatch) {
+    const d = new Date(new Date().getFullYear(), Number(shortMatch[2]) - 1, Number(shortMatch[1]))
+    if (!isNaN(d)) return d
+  }
+
+  // ISO format: YYYY-MM-DD
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     const d = new Date(s)
     if (!isNaN(d)) return d
   }
 
-  // Try European formats: DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
+  // European formats: DD/MM/YYYY, DD.MM.YYYY, DD-MM-YYYY
   const euro = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/)
   if (euro) {
     const d = new Date(Number(euro[3]), Number(euro[2]) - 1, Number(euro[1]))
     if (!isNaN(d)) return d
   }
 
-  // Try US format: MM/DD/YYYY (fallback)
+  // Fallback
   const us = new Date(s)
   if (!isNaN(us)) return us
 
@@ -70,7 +112,10 @@ export default function Upload() {
         header: true,
         skipEmptyLines: true,
         complete: (results) => {
-          results.data.forEach(row => {
+          const actualHeaders = results.meta?.fields || []
+          const headerMap = buildHeaderMap(actualHeaders)
+          results.data.forEach(rawRow => {
+            const row = remapRow(rawRow, headerMap)
             const name = row[CSV_COLUMNS.player]
             if (!name) return
             if (!allSessions[name]) allSessions[name] = []
