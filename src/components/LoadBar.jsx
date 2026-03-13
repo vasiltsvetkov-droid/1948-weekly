@@ -23,12 +23,12 @@ export default function LoadBar({ metricKey, label, value, refValue, pct }) {
   return (
     <div className="mb-3">
       <div className="flex justify-between text-xs mb-1">
-        <span className="text-slate-300">{label}</span>
-        <span className="text-slate-400">
+        <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+        <span style={{ color: 'var(--text-muted)' }}>
           {value != null ? value.toFixed(0) : '—'} / {refValue != null ? refValue.toFixed(0) : '—'} ({displayPct}%)
         </span>
       </div>
-      <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+      <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.1)' }}>
         <div
           className="h-full rounded-full transition-all"
           style={{ width: `${barWidth}%`, backgroundColor: barColor }}
