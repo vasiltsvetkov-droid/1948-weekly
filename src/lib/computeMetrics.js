@@ -4,7 +4,7 @@ import { MATCH_DEFAULTS, OPTIMAL_LOAD_PCT } from '../constants/matchDefaults'
  * computeMetrics
  *
  * @param {Object[]} sessions       - Array of parsed CSV row objects for one player, one week
- * @param {Object}   matchRefs      - { total_distance, hsr, sprint, hmld, nrg, acc, dec }
+ * @param {Object}   matchRefs      - { total_distance, hsr, sprint, hmld, nrg, acc, dec, heart_exertion }
  *                                    Per-90min match reference values entered by user.
  *                                    Falls back to MATCH_DEFAULTS[position] for any missing key.
  * @param {Object[]} history        - Up to 4 prior weekly_aggregate rows, oldest first
@@ -13,6 +13,7 @@ import { MATCH_DEFAULTS, OPTIMAL_LOAD_PCT } from '../constants/matchDefaults'
  *
  * @returns {Object} - All fields matching weekly_aggregates table columns, plus:
  *   - flags: string[]     — list of warning flags (e.g. "insufficient_history")
+ *   - explanations: Object — { rtt, rs, tmi, performance } explanation strings
  */
 export function computeMetrics({ sessions, matchRefs, history, position, personalMaxSpeed }) {
   // STEP 1: Aggregate weekly totals
@@ -28,21 +29,25 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
   // STEP 4: Load % vs match references
   const load_pct = computeLoadPct(totals, refs)
 
-  // STEP 5: ACWR calculation
+  // STEP 5: ACWR calculation (total_distance, sprint, mechanical, NRG)
   const { acwr, acwr_flags } = computeACWR(totals, history)
 
   // STEP 6: Personal max speed
   const effectiveMaxSpeed = personalMaxSpeed || totals.top_speed || 30
 
-  // STEP 7: Indexes
-  const api         = computeAPI(load_pct, totals, refs, effectiveMaxSpeed)
+  // STEP 7: Per-session Fatigue Index
+  const { fatigueIndex, sessionFatigueDetails, hasHRData } = computeFatigueIndex(sessions, refs)
+
+  // STEP 8: Indexes (all 0-100; display layer divides by 10)
+  const { rtt, rttExplanation }   = computeRTT(acwr, load_pct, refs)
+  const { rs, rsExplanation }     = computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails)
+  const { tmi, tmiExplanation }   = computeTMI(monotony)
+  const { performance, perfExplanation } = computePerformanceIndex(rtt, rs, tmi)
   const injury_risk = computeInjuryRisk(acwr, totals, history, monotony, effectiveMaxSpeed, refs)
-  const rtt         = computeRTT(acwr, injury_risk, load_pct, totals, history, monotony)
-  const rs          = computeRS(totals, history)
-  const tmi         = computeTMI(monotony)
 
   const flags = [...acwr_flags]
   if (!personalMaxSpeed) flags.push('no_personal_max_speed')
+  if (!hasHRData) flags.push('no_hr_data')
 
   return {
     // Totals
@@ -70,12 +75,15 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
     acwr_total_distance:  acwr.total_distance,
     acwr_sprint:          acwr.sprint,
     acwr_mechanical:      acwr.mechanical,
+    acwr_nrg:             acwr.nrg,
     // Indexes (0-100; display layer divides by 10)
-    api,
+    api: performance,  // Performance Index stored in api column for backward compatibility
     rtt,
     rs,
     tmi,
     injury_risk,
+    // Fatigue Index
+    fatigue_index: fatigueIndex,
     // Monotony
     monotony,
     // Load %
@@ -88,6 +96,13 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
     load_pct_dec:            load_pct.dec,
     daily_loads,
     flags,
+    // Explanations
+    explanations: {
+      rtt: rttExplanation,
+      rs: rsExplanation,
+      tmi: tmiExplanation,
+      performance: perfExplanation,
+    },
   }
 }
 
@@ -97,7 +112,10 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
  */
 function aggregateSessions(sessions) {
   const sum = key => sessions.reduce((acc, s) => acc + (parseFloat(s[key]) || 0), 0)
-  const avg = key => sessions.length ? sum(key) / sessions.length : 0
+  const avg = key => {
+    const vals = sessions.map(s => parseFloat(s[key])).filter(v => !isNaN(v) && v > 0)
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : 0
+  }
   const max = key => Math.max(...sessions.map(s => parseFloat(s[key]) || 0))
 
   return {
@@ -120,8 +138,8 @@ function aggregateSessions(sessions) {
     intensity_indicator:  avg('Intensity indicator'),
     avg_hr:               avg('Average HR (bpm)'),
     max_hr:               max('Maximum HR (bpm)'),
-    heart_exertion:       avg('Heart exertion'),
-    heart_exertion_above_th: avg('Heart exertion above TH'),
+    heart_exertion:       sum('Heart exertion'),
+    heart_exertion_above_th: sum('Heart exertion above TH'),
   }
 }
 
@@ -130,9 +148,10 @@ function aggregateSessions(sessions) {
  * @returns {number|null} Training monotony value
  */
 function computeMonotony(daily_loads) {
-  if (!daily_loads.length) return null
-  const mean = daily_loads.reduce((a, b) => a + b, 0) / daily_loads.length
-  const sd = Math.sqrt(daily_loads.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / daily_loads.length)
+  const nonZero = daily_loads.filter(v => v > 0)
+  if (!nonZero.length) return null
+  const mean = nonZero.reduce((a, b) => a + b, 0) / nonZero.length
+  const sd = Math.sqrt(nonZero.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / nonZero.length)
   if (sd === 0) return Infinity
   return mean / sd
 }
@@ -145,13 +164,14 @@ function computeMonotony(daily_loads) {
 function resolveMatchRefs(matchRefs, position) {
   const defaults = MATCH_DEFAULTS[position] || MATCH_DEFAULTS['CM']
   return {
-    total_distance: matchRefs?.total_distance || defaults.total_distance,
-    hsr:            matchRefs?.hsr            || defaults.hsr,
-    sprint:         matchRefs?.sprint         || defaults.sprint,
-    hmld:           matchRefs?.hmld           || defaults.hmld,
-    nrg:            matchRefs?.nrg            || defaults.nrg,
-    acc:            matchRefs?.acc            || defaults.acc,
-    dec:            matchRefs?.dec            || defaults.dec,
+    total_distance:  matchRefs?.total_distance  || defaults.total_distance,
+    hsr:             matchRefs?.hsr             || defaults.hsr,
+    sprint:          matchRefs?.sprint          || defaults.sprint,
+    hmld:            matchRefs?.hmld            || defaults.hmld,
+    nrg:             matchRefs?.nrg             || defaults.nrg,
+    acc:             matchRefs?.acc             || defaults.acc,
+    dec:             matchRefs?.dec             || defaults.dec,
+    heart_exertion:  matchRefs?.heart_exertion  || defaults.heart_exertion,
   }
 }
 
@@ -192,71 +212,318 @@ function computeACWR(totals, history) {
   const c_td = chronic('total_distance')
   const c_sp = chronic('sprint_distance')
   const c_ml = chronic('mechanical_load')
+  const c_nrg = chronic('total_nrg')
 
   return {
     acwr: {
       total_distance: c_td ? totals.total_distance / c_td : null,
       sprint:         c_sp ? totals.sprint_distance / c_sp : null,
       mechanical:     c_ml ? totals.mechanical_load / c_ml : null,
+      nrg:            c_nrg ? totals.total_nrg / c_nrg : null,
     },
     acwr_flags: flags,
   }
 }
 
 /**
- * Score a load% value against an optimal band — returns 0-100
- * @param {number|null} pct - Load percentage
- * @param {number} optMin - Optimal minimum
- * @param {number} optMax - Optimal maximum
- * @returns {number}
+ * Compute per-session Fatigue Index.
+ * FI = (Heart Exertion % of match ref) - (NRG expenditure % of match ref)
+ * Positive FI means internal load (HR) is disproportionately high relative to external load (NRG).
+ * Scale: ≤ -0.1 = low fatigue; 0.5–5.0 = mild fatigue; > 5.1 = high fatigue
+ *
+ * @param {Object[]} sessions - Raw CSV rows
+ * @param {Object} refs - Match reference values (including heart_exertion)
+ * @returns {{ fatigueIndex: number|null, sessionFatigueDetails: Object[], hasHRData: boolean }}
  */
-function scoreLoadPct(pct, optMin, optMax) {
-  if (pct === null) return 50
-  if (pct >= optMin && pct <= optMax) return 100
-  if (pct < optMin) {
-    if (pct < optMin * 0.6) return 10
-    return 10 + ((pct - optMin * 0.6) / (optMin * 0.4)) * 70
+function computeFatigueIndex(sessions, refs) {
+  const sessionDetails = []
+  let hasHRData = false
+
+  for (const s of sessions) {
+    const nrg = parseFloat(s['Total NRG expenditure (J/kg)']) || 0
+    const he = parseFloat(s['Heart exertion'])
+
+    const nrgPct = refs.nrg > 0 ? (nrg / refs.nrg) * 100 : 0
+    const isHRAvailable = !isNaN(he) && he > 0
+
+    if (isHRAvailable) {
+      hasHRData = true
+      const hePct = refs.heart_exertion > 0 ? (he / refs.heart_exertion) * 100 : 0
+      const fi = hePct - nrgPct
+      sessionDetails.push({ nrg, he, nrgPct, hePct, fi, hasHR: true })
+    } else {
+      sessionDetails.push({ nrg, he: null, nrgPct, hePct: null, fi: null, hasHR: false })
+    }
   }
-  // above optimal
-  if (pct > optMax * 1.3) return 20
-  return 100 - ((pct - optMax) / (optMax * 0.3)) * 80
+
+  // Average fatigue index across sessions with HR data
+  const sessionsWithHR = sessionDetails.filter(d => d.hasHR)
+  const avgFI = sessionsWithHR.length
+    ? sessionsWithHR.reduce((sum, d) => sum + d.fi, 0) / sessionsWithHR.length
+    : null
+
+  return {
+    fatigueIndex: avgFI,
+    sessionFatigueDetails: sessionDetails,
+    hasHRData,
+  }
 }
 
 /**
- * @param {Object} load_pct - Load percentages
- * @param {Object} totals - Weekly totals
- * @param {Object} refs - Match references
- * @param {number} personalMaxSpeed - Player's max recorded speed
- * @returns {number} API score 0-100
+ * Score how close a value is to a target, with ±tolerance% being optimal.
+ * Returns 0-100.
  */
-function computeAPI(load_pct, totals, refs, personalMaxSpeed) {
-  // Volume (30%)
-  const vol = scoreLoadPct(load_pct.total_distance, 270, 320)
+function scoreCloseness(value, target, tolerancePct = 10) {
+  if (value === null || target === null) return 50
+  const deviation = Math.abs(value - target)
+  const toleranceAbs = target * (tolerancePct / 100)
+  if (deviation <= toleranceAbs) return 100
+  // Linear decay outside tolerance, bottoming out at 20
+  const excessDeviation = deviation - toleranceAbs
+  const maxDeviation = target * 0.5 // at 50% deviation beyond tolerance, score = 20
+  return Math.max(20, Math.round(100 - (excessDeviation / maxDeviation) * 80))
+}
 
-  // High-Intensity (35%)
-  const hi = (
-    scoreLoadPct(load_pct.hsr,    300, 350) +
-    scoreLoadPct(load_pct.sprint, 300, 310) +
-    scoreLoadPct(load_pct.acc,    300, 400)
-  ) / 3
+/**
+ * Score ACWR value. 0.8-1.3 = optimal (100). Outside = lower.
+ * Returns 0-100.
+ */
+function scoreACWR(acwr) {
+  if (acwr === null) return 50
+  if (acwr >= 0.8 && acwr <= 1.3) return 100
+  if (acwr < 0.8) {
+    if (acwr < 0.4) return 15
+    return Math.round(15 + ((acwr - 0.4) / 0.4) * 85)
+  }
+  // above 1.3
+  if (acwr > 2.0) return 10
+  return Math.round(100 - ((acwr - 1.3) / 0.7) * 90)
+}
 
-  // Metabolic (20%)
-  const met = (
-    scoreLoadPct(load_pct.nrg,  270, 320) +
-    scoreLoadPct(load_pct.hmld, 250, 350)
-  ) / 2
+/**
+ * Readiness to Train Index (RTT)
+ * Correlates the % reached of the weekly match reference with ACWR for Total NRG.
+ * ACWR gives more weight (60%) in this equation.
+ *
+ * @param {Object} acwr - ACWR values including nrg
+ * @param {Object} load_pct - Load percentages vs match reference
+ * @param {Object} refs - Match reference values
+ * @returns {{ rtt: number, rttExplanation: string }}
+ */
+function computeRTT(acwr, load_pct, refs) {
+  const explanationParts = []
 
-  // Speed Exposure (15%)
-  const sprintExp = refs.sprint > 0
-    ? (totals.sprint_distance / refs.sprint >= 1.3 ? 100 :
-       totals.sprint_distance / refs.sprint >= 1.0 ? 70 : 40)
-    : 50
-  const speedExp = personalMaxSpeed > 0
-    ? (totals.top_speed / personalMaxSpeed >= 0.90 ? 100 : 50)
-    : 50
-  const spd = (sprintExp + speedExp) / 2
+  // Component 1 (40%): How close weekly NRG load is to match reference
+  // Within ±10% of match reference = highest score
+  const nrgPct = load_pct.nrg
+  const loadScore = scoreCloseness(nrgPct, 100, 10)
 
-  return Math.round(vol * 0.30 + hi * 0.35 + met * 0.20 + spd * 0.15)
+  if (nrgPct !== null) {
+    if (Math.abs(nrgPct - 100) <= 10) {
+      explanationParts.push(`Weekly NRG expenditure is ${nrgPct.toFixed(0)}% of match reference, within the optimal ±10% band — indicating well-calibrated training load relative to match demands.`)
+    } else if (nrgPct < 90) {
+      explanationParts.push(`Weekly NRG expenditure reached only ${nrgPct.toFixed(0)}% of match reference, below the optimal 90–110% band. This underloading may leave the player underprepared for match-intensity metabolic demands (Malone et al. 2017). Progressive increase is recommended.`)
+    } else {
+      explanationParts.push(`Weekly NRG expenditure at ${nrgPct.toFixed(0)}% of match reference exceeds the optimal 90–110% band. Elevated metabolic loading without adequate recovery increases non-functional overreaching risk (Meeusen et al. 2013).`)
+    }
+  } else {
+    explanationParts.push('NRG expenditure data unavailable for load achievement assessment.')
+  }
+
+  // Component 2 (60%): ACWR for NRG (more weight)
+  const acwrNrg = acwr.nrg
+  const acwrScore = scoreACWR(acwrNrg)
+
+  if (acwrNrg !== null) {
+    if (acwrNrg >= 0.8 && acwrNrg <= 1.3) {
+      explanationParts.push(`ACWR for NRG (${acwrNrg.toFixed(2)}) is within the 0.8–1.3 sweet spot, the zone associated with lowest injury risk and appropriate training stimulus (Gabbett 2016).`)
+    } else if (acwrNrg < 0.8) {
+      explanationParts.push(`ACWR for NRG (${acwrNrg.toFixed(2)}) is below 0.8, indicating insufficient training stimulus relative to the chronic baseline. Sustained underloading reduces the body's capacity to tolerate match demands and elevates injury risk when loads spike (Malone et al. 2017).`)
+    } else if (acwrNrg <= 1.5) {
+      explanationParts.push(`ACWR for NRG (${acwrNrg.toFixed(2)}) is in the caution zone (1.3–1.5). Monitor closely and avoid further intensification next week (Gabbett 2016; Hulin et al. 2016).`)
+    } else {
+      explanationParts.push(`ACWR for NRG (${acwrNrg.toFixed(2)}) is in the danger zone (>1.5), associated with 2–4× elevated injury risk. Immediate load reduction is recommended (Gabbett 2016).`)
+    }
+  } else {
+    explanationParts.push('Insufficient training history to compute ACWR for NRG. At least one prior week of data is needed.')
+  }
+
+  const rtt = Math.round(loadScore * 0.40 + acwrScore * 0.60)
+
+  return {
+    rtt: Math.max(0, Math.min(100, rtt)),
+    rttExplanation: explanationParts.join(' '),
+  }
+}
+
+/**
+ * Recovery Status (RS)
+ * ACWR of Total NRG expenditure correlated with Fatigue Index.
+ * Fatigue Index: (Heart Exertion % of match ref) - (NRG % of match ref)
+ * Scale: ≤ -0.1 = low fatigue; 0.5–5.0 = mild fatigue; > 5.1 = high fatigue
+ *
+ * When HR data is unavailable, RS is based solely on ACWR NRG.
+ *
+ * @param {Object} acwr - ACWR values including nrg
+ * @param {number|null} fatigueIndex - Average weekly fatigue index
+ * @param {boolean} hasHRData - Whether HR data was available
+ * @param {Object[]} sessionFatigueDetails - Per-session fatigue details
+ * @returns {{ rs: number, rsExplanation: string }}
+ */
+function computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails) {
+  const explanationParts = []
+
+  // Component 1: ACWR NRG
+  const acwrNrg = acwr.nrg
+  const acwrScore = scoreACWR(acwrNrg)
+
+  if (acwrNrg !== null) {
+    if (acwrNrg >= 0.8 && acwrNrg <= 1.3) {
+      explanationParts.push(`ACWR NRG (${acwrNrg.toFixed(2)}) is within optimal range, supporting adequate recovery between sessions.`)
+    } else if (acwrNrg > 1.3) {
+      explanationParts.push(`ACWR NRG (${acwrNrg.toFixed(2)}) is elevated above optimal, indicating the acute training load is higher than the chronic baseline. This creates cumulative fatigue that impairs recovery capacity (Banister et al. 1975).`)
+    } else {
+      explanationParts.push(`ACWR NRG (${acwrNrg.toFixed(2)}) is below 0.8, suggesting reduced training load. While this may aid recovery in the short term, sustained underloading reduces training tolerance.`)
+    }
+  } else {
+    explanationParts.push('No prior history available for ACWR NRG calculation.')
+  }
+
+  // Component 2: Fatigue Index (only when HR data available)
+  if (hasHRData && fatigueIndex !== null) {
+    let fiScore
+    if (fatigueIndex <= -0.1) {
+      // Low fatigue — excellent recovery
+      fiScore = 100
+      explanationParts.push(`Fatigue Index of ${fatigueIndex.toFixed(2)} indicates low fatigue — the internal cardiovascular cost is proportionate or lower than the external mechanical output. Recovery status is favorable.`)
+    } else if (fatigueIndex <= 0.5) {
+      // Borderline
+      fiScore = 85
+      explanationParts.push(`Fatigue Index of ${fatigueIndex.toFixed(2)} is in the neutral zone. Internal and external load are roughly balanced.`)
+    } else if (fatigueIndex <= 5.0) {
+      // Mild fatigue
+      fiScore = Math.round(85 - ((fatigueIndex - 0.5) / 4.5) * 55)
+      explanationParts.push(`Fatigue Index of ${fatigueIndex.toFixed(2)} indicates mild fatigue — the cardiovascular (internal) cost of training is disproportionately higher than the mechanical (external) output. This suggests accumulated fatigue where the body is working harder for the same external work (Banister et al. 1975; Saw et al. 2016).`)
+
+      // Check for high FI across multiple days
+      const highFIDays = sessionFatigueDetails.filter(d => d.hasHR && d.fi > 5.0).length
+      if (highFIDays >= 2) {
+        explanationParts.push(`High Fatigue Index observed across ${highFIDays} training days, which negatively compounds recovery deficit.`)
+      }
+    } else {
+      // High fatigue
+      fiScore = Math.max(10, Math.round(30 - ((fatigueIndex - 5.0) / 10) * 20))
+      explanationParts.push(`Fatigue Index of ${fatigueIndex.toFixed(2)} indicates high fatigue — significant cardiovascular strain relative to external output. This pattern is associated with overreaching and elevated illness/injury risk (Meeusen et al. 2013). Load reduction and wellness assessment (Hooper Index, HRV, sleep quality) are strongly recommended.`)
+
+      const highFIDays = sessionFatigueDetails.filter(d => d.hasHR && d.fi > 5.0).length
+      if (highFIDays >= 2) {
+        explanationParts.push(`High Fatigue Index throughout ${highFIDays} sessions negatively affects recovery and increases overtraining risk.`)
+      }
+    }
+
+    // RS = 40% ACWR + 60% Fatigue Index (FI is the more specific recovery indicator)
+    const rs = Math.round(acwrScore * 0.40 + fiScore * 0.60)
+
+    return {
+      rs: Math.max(0, Math.min(100, rs)),
+      rsExplanation: explanationParts.join(' '),
+    }
+  }
+
+  // No HR data — RS based solely on ACWR NRG
+  explanationParts.push('No heart rate data available for Fatigue Index calculation. Recovery Status is based on ACWR NRG alone. Consider using HR monitors for more accurate recovery assessment.')
+
+  return {
+    rs: Math.max(0, Math.min(100, acwrScore)),
+    rsExplanation: explanationParts.join(' '),
+  }
+}
+
+/**
+ * Training Monotony Index (TMI)
+ * Monotony = average daily load / SD of daily load over the week.
+ * High value (>2.0) indicates low variety and high risk of overtraining.
+ * Lower values are preferred (Foster et al. 2001).
+ *
+ * @param {number|null} monotony - Raw training monotony value
+ * @returns {{ tmi: number, tmiExplanation: string }}
+ */
+function computeTMI(monotony) {
+  let tmi
+  let explanation
+
+  if (monotony === null) {
+    tmi = 50
+    explanation = 'Insufficient data to calculate Training Monotony. At least two training sessions with non-zero load are required.'
+  } else if (!isFinite(monotony)) {
+    tmi = 15
+    explanation = 'Training Monotony is extremely high (identical load every day). Zero variability in daily training load is strongly associated with overreaching, illness, and injury (Foster et al. 2001). The microcycle must alternate between high-load and recovery days following the MD-based structure.'
+  } else if (monotony <= 1.0) {
+    tmi = 100
+    explanation = `Training Monotony of ${monotony.toFixed(2)} indicates excellent day-to-day load variation. The microcycle has clear differentiation between hard and easy days, supporting supercompensation and reducing overtraining risk (Foster et al. 2001).`
+  } else if (monotony <= 1.5) {
+    tmi = Math.round(100 - ((monotony - 1.0) / 0.5) * 20)
+    explanation = `Training Monotony of ${monotony.toFixed(2)} indicates good load variation with some room for improvement. The target for a well-structured microcycle is below 1.5 (Foster et al. 2001). Slightly increasing the contrast between hard days (MD-4 peak) and recovery days (MD+1, MD+2) will improve this further.`
+  } else if (monotony <= 2.0) {
+    tmi = Math.round(80 - ((monotony - 1.5) / 0.5) * 20)
+    explanation = `Training Monotony of ${monotony.toFixed(2)} is moderate. Load uniformity is approaching levels associated with overreaching risk. Adjusting session intensity distribution — increasing the contrast between MD-4 peak days and MD+1 recovery days — is recommended (Foster et al. 2001).`
+  } else if (monotony <= 2.5) {
+    tmi = Math.round(60 - ((monotony - 2.0) / 0.5) * 25)
+    explanation = `Training Monotony of ${monotony.toFixed(2)} exceeds the 2.0 threshold associated with overreaching, illness, and injury risk (Foster et al. 2001). Day-to-day load variation is insufficient. Introduce clear alternation between high-load days (SSGs, match intensity) and low-load days (mobility, pool recovery) to restore appropriate variety.`
+  } else {
+    tmi = 20
+    explanation = `Training Monotony of ${monotony.toFixed(2)} is critically high (>2.5). This level of load uniformity is strongly associated with non-functional overreaching and immune suppression (Foster et al. 2001; Meeusen et al. 2013). Immediate restructuring of the training week is required to introduce day-to-day load variation following MD-based microcycle principles.`
+  }
+
+  return { tmi, tmiExplanation: explanation }
+}
+
+/**
+ * Performance Index
+ * A combination of RTT (35%), RS (35%), and TMI (30%) on a 0-10 scale (stored 0-100).
+ * The bigger — the better.
+ *
+ * @param {number} rtt - Readiness to Train Index (0-100)
+ * @param {number} rs - Recovery Status (0-100)
+ * @param {number} tmi - Training Monotony Index (0-100)
+ * @returns {{ performance: number, perfExplanation: string }}
+ */
+function computePerformanceIndex(rtt, rs, tmi) {
+  const performance = Math.round(rtt * 0.35 + rs * 0.35 + tmi * 0.30)
+  const display = (performance / 10).toFixed(1)
+  const rttDisplay = (rtt / 10).toFixed(1)
+  const rsDisplay = (rs / 10).toFixed(1)
+  const tmiDisplay = (tmi / 10).toFixed(1)
+
+  const parts = []
+
+  if (performance >= 70) {
+    parts.push(`Performance Index of ${display}/10 reflects strong overall status.`)
+  } else if (performance >= 50) {
+    parts.push(`Performance Index of ${display}/10 reflects moderate overall status with room for improvement.`)
+  } else {
+    parts.push(`Performance Index of ${display}/10 indicates suboptimal training status requiring attention.`)
+  }
+
+  // Identify the weakest component
+  const components = [
+    { name: 'Readiness to Train', value: rtt, display: rttDisplay },
+    { name: 'Recovery Status', value: rs, display: rsDisplay },
+    { name: 'Training Monotony', value: tmi, display: tmiDisplay },
+  ]
+  const weakest = components.reduce((min, c) => c.value < min.value ? c : min, components[0])
+  const strongest = components.reduce((max, c) => c.value > max.value ? c : max, components[0])
+
+  parts.push(`Strongest contributor: ${strongest.name} (${strongest.display}/10). Weakest contributor: ${weakest.name} (${weakest.display}/10).`)
+
+  if (weakest.value < 50) {
+    parts.push(`Priority action: address ${weakest.name} to improve overall performance capacity.`)
+  }
+
+  return {
+    performance: Math.max(0, Math.min(100, performance)),
+    perfExplanation: parts.join(' '),
+  }
 }
 
 /**
@@ -316,72 +583,4 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
   risk += chronRisk * 0.10
 
   return Math.round(Math.min(100, risk))
-}
-
-/**
- * @param {Object} acwr - ACWR values
- * @param {number} injury_risk - Injury risk score
- * @param {Object} load_pct - Load percentages
- * @param {Object} totals - Weekly totals
- * @param {Object[]} history - Prior aggregates
- * @param {number|null} monotony - Training monotony
- * @returns {number} RTT score 0-100
- */
-function computeRTT(acwr, injury_risk, load_pct, totals, history, monotony) {
-  let score = 100
-
-  const a = acwr.total_distance
-  if (a !== null) {
-    if (a > 1.5) score -= 25
-    else if (a > 1.3) score -= 15
-  }
-
-  if (injury_risk > 60) score -= 20
-  else if (injury_risk > 40) score -= 10
-
-  if (load_pct.sprint !== null && load_pct.sprint < 150) score -= 10
-
-  const avgMech = history.length
-    ? history.map(h => h.mechanical_load || 0).reduce((a, b) => a + b, 0) / history.length
-    : null
-  if (avgMech && totals.mechanical_load / avgMech > 1.4) score -= 15
-
-  if (monotony !== null && isFinite(monotony) && monotony > 2.0) score -= 10
-
-  return Math.round(Math.max(0, score))
-}
-
-/**
- * @param {Object} totals - Weekly totals
- * @param {Object[]} history - Prior aggregates
- * @returns {number} RS score 0-100
- */
-function computeRS(totals, history) {
-  let score = 100
-  if (!history.length) return score
-
-  const avg = key => history.map(h => h[key] || 0).reduce((a, b) => a + b, 0) / history.length
-  const avgMech = avg('mechanical_load')
-  const avgHmld = avg('hmld')
-  const avgNrg  = avg('total_nrg')
-
-  if (avgMech && totals.mechanical_load > avgMech * 1.3) score -= 20
-  if (avgHmld && totals.hmld > avgHmld * 1.5)           score -= 15
-  if (avgNrg  && totals.total_nrg > avgNrg * 1.3)       score -= 15
-
-  return Math.round(Math.max(0, score))
-}
-
-/**
- * @param {number|null} monotony - Training monotony value
- * @returns {number} TMI score 0-100
- */
-function computeTMI(monotony) {
-  if (monotony === null) return 50
-  if (!isFinite(monotony)) return 20
-  if (monotony <= 1.0) return 100
-  if (monotony <= 1.5) return Math.round(100 - ((monotony - 1.0) / 0.5) * 20)
-  if (monotony <= 2.0) return Math.round(80  - ((monotony - 1.5) / 0.5) * 20)
-  if (monotony <= 2.5) return Math.round(60  - ((monotony - 2.0) / 0.5) * 20)
-  return 20
 }

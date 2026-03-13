@@ -58,12 +58,16 @@ create table weekly_aggregates (
   acwr_total_distance numeric,
   acwr_sprint numeric,
   acwr_mechanical numeric,
+  acwr_nrg numeric,
   -- Indexes stored 0-100 (display layer divides by 10)
+  -- api column stores Performance Index (combination of RTT, RS, TMI)
   api numeric,
   rtt numeric,
   rs numeric,
   tmi numeric,
   injury_risk numeric,
+  -- Fatigue Index: (Heart Exertion % of match ref) - (NRG % of match ref)
+  fatigue_index numeric,
   -- Training monotony
   monotony numeric,
   -- Load vs match reference percentages
@@ -76,6 +80,8 @@ create table weekly_aggregates (
   load_pct_dec numeric,
   -- Daily loads array for monotony
   daily_loads jsonb,
+  -- Index explanations (RTT, RS, TMI, Performance)
+  explanations jsonb,
   created_at timestamptz default now(),
   unique(player_id, week_start_date)
 );
@@ -102,3 +108,9 @@ create policy "auth_all" on match_references for all to authenticated using (tru
 create policy "auth_all" on weekly_sessions for all to authenticated using (true) with check (true);
 create policy "auth_all" on weekly_aggregates for all to authenticated using (true) with check (true);
 create policy "auth_all" on team_snapshots for all to authenticated using (true) with check (true);
+
+-- Migration: Add new columns for RTT/RS/TMI redesign
+-- Run these if upgrading from a previous schema version:
+-- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS acwr_nrg numeric;
+-- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS fatigue_index numeric;
+-- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS explanations jsonb;

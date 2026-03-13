@@ -7,6 +7,7 @@ export const MATCH_DEFAULTS = {
     nrg: 5800,
     acc: 140,
     dec: 130,
+    heart_exertion: 2500,
   },
   FB: {
     total_distance: 11750,
@@ -16,6 +17,7 @@ export const MATCH_DEFAULTS = {
     nrg: 6200,
     acc: 160,
     dec: 150,
+    heart_exertion: 3200,
   },
   CM: {
     total_distance: 12250,
@@ -25,6 +27,7 @@ export const MATCH_DEFAULTS = {
     nrg: 6500,
     acc: 170,
     dec: 155,
+    heart_exertion: 3500,
   },
   WM: {
     total_distance: 11750,
@@ -34,6 +37,7 @@ export const MATCH_DEFAULTS = {
     nrg: 6300,
     acc: 165,
     dec: 150,
+    heart_exertion: 3000,
   },
   ST: {
     total_distance: 10750,
@@ -43,6 +47,7 @@ export const MATCH_DEFAULTS = {
     nrg: 5900,
     acc: 155,
     dec: 140,
+    heart_exertion: 2800,
   },
   GK: {
     total_distance: 5500,
@@ -52,6 +57,7 @@ export const MATCH_DEFAULTS = {
     nrg: 3000,
     acc: 60,
     dec: 55,
+    heart_exertion: 1500,
   },
 }
 

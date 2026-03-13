@@ -306,11 +306,13 @@ export default function Upload() {
           acwr_total_distance: num(metrics.acwr_total_distance),
           acwr_sprint: num(metrics.acwr_sprint),
           acwr_mechanical: num(metrics.acwr_mechanical),
+          acwr_nrg: num(metrics.acwr_nrg),
           api: num(metrics.api),
           rtt: num(metrics.rtt),
           rs: num(metrics.rs),
           tmi: num(metrics.tmi),
           injury_risk: num(metrics.injury_risk),
+          fatigue_index: num(metrics.fatigue_index),
           monotony: num(metrics.monotony),
           load_pct_total_distance: num(metrics.load_pct_total_distance),
           load_pct_hsr: num(metrics.load_pct_hsr),
@@ -320,6 +322,7 @@ export default function Upload() {
           load_pct_acc: num(metrics.load_pct_acc),
           load_pct_dec: num(metrics.load_pct_dec),
           daily_loads: metrics.daily_loads,
+          explanations: metrics.explanations || null,
         }
 
         const { error: aggErr } = await supabase
