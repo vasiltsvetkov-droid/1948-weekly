@@ -12,10 +12,12 @@ export default function NeuralBackground() {
     let width = window.innerWidth
     let height = window.innerHeight
 
+    const getTheme = () => document.documentElement.getAttribute('data-theme') || 'dark'
+
     const getSettings = () => {
       const mobile = window.innerWidth <= 768
       return {
-        count: mobile ? 30 : 80,
+        count: mobile ? 30 : 90,
         maxDist: mobile ? 120 : 150,
         opMul: mobile ? 0.5 : 1,
       }
@@ -38,9 +40,11 @@ export default function NeuralBackground() {
         this.y = Math.max(0, Math.min(height, this.y))
       }
       draw() {
+        const theme = getTheme()
+        const col = theme === 'light' ? 'rgba(0,0,0,0.5)' : 'rgba(255,255,255,0.5)'
         ctx.beginPath()
         ctx.arc(this.x, this.y, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(255,255,255,0.5)'
+        ctx.fillStyle = col
         ctx.fill()
       }
     }
@@ -67,6 +71,7 @@ export default function NeuralBackground() {
 
     const animate = () => {
       ctx.clearRect(0, 0, width, height)
+      const theme = getTheme()
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i]
         p.update()
@@ -76,13 +81,16 @@ export default function NeuralBackground() {
           const dx = p.x - q.x, dy = p.y - q.y
           const d = Math.sqrt(dx * dx + dy * dy)
           if (d < settings.maxDist) {
-            const op = (1 - d / settings.maxDist) * 0.4 * settings.opMul
+            const op = (1 - d / settings.maxDist) * 0.45 * settings.opMul
+            const lineCol = Math.random() > 0.92
+              ? `rgba(227,6,19,${op})`
+              : theme === 'light'
+                ? `rgba(0,0,0,${op})`
+                : `rgba(255,255,255,${op})`
             ctx.beginPath()
             ctx.moveTo(p.x, p.y)
             ctx.lineTo(q.x, q.y)
-            ctx.strokeStyle = Math.random() > 0.92
-              ? `rgba(227,6,19,${op})`
-              : `rgba(255,255,255,${op})`
+            ctx.strokeStyle = lineCol
             ctx.lineWidth = 0.8
             ctx.stroke()
           }
@@ -102,8 +110,8 @@ export default function NeuralBackground() {
   }, [])
 
   return (
-    <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
-      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', opacity: 0.6 }} />
+    <div className="dashboard-background" style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+      <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', opacity: 0.7 }} />
     </div>
   )
 }

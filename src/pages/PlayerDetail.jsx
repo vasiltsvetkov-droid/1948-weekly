@@ -16,24 +16,33 @@ import IndexCard from '../components/IndexCard'
 import LoadBar from '../components/LoadBar'
 import RecommendationCard from '../components/RecommendationCard'
 
-const tooltipStyle = { backgroundColor: 'rgba(26,26,26,0.95)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff', backdropFilter: 'blur(8px)' }
-const axisTickStyle = { fill: '#94a3b8', fontSize: 10 }
-const gridStroke = 'rgba(255,255,255,0.06)'
+const tooltipStyle = {
+  backgroundColor: 'var(--glass-bg)',
+  border: '1px solid var(--glass-border)',
+  borderRadius: 12,
+  color: 'var(--text-primary)',
+  backdropFilter: 'blur(8px)',
+  fontFamily: 'var(--font-mono)',
+  fontSize: '0.7rem',
+}
+const axisTickStyle = { fill: 'var(--text-muted)', fontSize: 9, fontFamily: 'DM Mono, monospace' }
+const gridStroke = 'rgba(148,163,184,0.08)'
 
 function ACWRZoneBar({ value, label }) {
   if (value == null) return null
-  // Map ACWR value to position: 0=0%, 2.0=100%
   const pct = Math.min(Math.max(value / 2.0, 0), 1) * 100
-  const zoneColor = value >= 0.8 && value <= 1.3 ? '#22c55e'
-    : value > 1.5 ? '#ef4444'
-    : value > 1.3 ? '#f59e0b'
-    : '#3b82f6'
+  const zoneColor = value >= 0.8 && value <= 1.3 ? '#10B981'
+    : value > 1.5 ? '#EF4444'
+    : value > 1.3 ? '#F59E0B'
+    : '#3B82F6'
 
   return (
     <div className="mb-4">
-      <div className="flex justify-between text-xs mb-1.5">
-        <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-        <span className="font-semibold" style={{ color: zoneColor }}>{value.toFixed(2)}</span>
+      <div className="flex justify-between mb-1.5">
+        <span style={{ fontFamily: 'var(--font-data)', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{label}</span>
+        <span className="acwr-badge" style={{ color: zoneColor, borderColor: `${zoneColor}40`, background: `${zoneColor}18` }}>
+          {value.toFixed(2)}
+        </span>
       </div>
       <div className="acwr-zone-bar">
         <div className="acwr-zone under"><span>{'<0.8'}</span></div>
@@ -53,8 +62,19 @@ function ExplanationBox({ title, text }) {
     <div className="mt-3">
       <button
         onClick={() => setOpen(!open)}
-        className="text-xs font-medium flex items-center gap-1 transition-colors"
-        style={{ color: 'var(--color-primary)' }}
+        className="transition-colors"
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.65rem',
+          letterSpacing: '1px',
+          color: 'var(--color-primary)',
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.25rem',
+        }}
       >
         {open ? '▾' : '▸'} {title || 'Why this score?'}
       </button>
@@ -121,11 +141,11 @@ export default function PlayerDetail() {
   }
 
   if (playerLoading || historyLoading) {
-    return <div className="p-8" style={{ color: 'var(--text-secondary)' }}>Loading...</div>
+    return <div className="p-8" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', letterSpacing: '1.5px' }}>Loading...</div>
   }
 
   if (!player) {
-    return <div className="p-8" style={{ color: 'var(--text-secondary)' }}>Player not found.</div>
+    return <div className="p-8" style={{ fontFamily: 'var(--font-data)', color: 'var(--text-secondary)' }}>Player not found.</div>
   }
 
   // Chart data
@@ -149,13 +169,11 @@ export default function PlayerDetail() {
     'Fatigue Index': h.fatigue_index != null ? Number(Number(h.fatigue_index).toFixed(2)) : null,
   }))
 
-  // Daily loads bar chart for the latest week
   const dailyLoadData = (latest?.daily_loads || []).map((load, i) => ({
     day: `Day ${i + 1}`,
     NRG: Number(load) || 0,
   }))
 
-  // Weekly NRG trend (absolute values)
   const nrgTrendData = history.map(h => ({
     week: h.week_start_date,
     'Total NRG': h.total_nrg != null ? Math.round(h.total_nrg) : null,
@@ -167,23 +185,25 @@ export default function PlayerDetail() {
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold">{player.name}</h1>
-          <span className="inline-block mt-1 px-3 py-0.5 rounded-full text-xs font-medium"
-            style={{ background: 'rgba(227,6,19,0.15)', color: 'var(--color-primary)', border: '1px solid rgba(227,6,19,0.3)' }}
-          >
-            {player.position}
-          </span>
+          <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>{player.name}</h1>
+          <div className="flex items-center gap-3 mt-2">
+            <span className="pos-badge">{player.position}</span>
+            {latest && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>
+                Week: {latest.week_start_date}
+              </span>
+            )}
+          </div>
         </div>
-        <button onClick={handleExportPDF} className="btn-primary">
-          Export PDF
-        </button>
+        <button onClick={handleExportPDF} className="btn-primary">Export PDF</button>
       </div>
 
       {!latest ? (
-        <div className="py-12 text-center" style={{ color: 'var(--text-secondary)' }}>No weekly data available for this player.</div>
+        <div className="py-12 text-center" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>No weekly data available for this player.</div>
       ) : (
         <>
           {/* Section A: Index Hero Cards */}
+          <div className="section-label">Performance Indexes</div>
           <div className="flex flex-wrap gap-3 mb-6">
             <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} />
             <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
@@ -193,34 +213,32 @@ export default function PlayerDetail() {
           </div>
 
           {/* ACWR NRG Visualization */}
+          <div className="section-label">ACWR & Recovery</div>
           <div className="glass-card p-5 mb-6">
-            <h2 className="section-heading">ACWR — Energy Expenditure</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <ACWRZoneBar value={latest.acwr_nrg} label="ACWR NRG (Acute:Chronic Workload Ratio)" />
                 <ACWRZoneBar value={latest.acwr_total_distance} label="ACWR Total Distance" />
                 <ACWRZoneBar value={latest.acwr_mechanical} label="ACWR Mechanical Load" />
 
-                {/* Fatigue Index & Monotony inline */}
-                <div className="flex flex-wrap gap-4 mt-4 text-sm">
+                <div className="flex flex-wrap gap-4 mt-4">
                   {latest.fatigue_index != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Fatigue Index:</span>
-                      <span className="font-bold" style={{
-                        color: latest.fatigue_index <= -0.1 ? '#22c55e' : latest.fatigue_index <= 5.0 ? '#f59e0b' : '#ef4444'
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Fatigue Index</span>
+                      <span style={{
+                        fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',
+                        color: latest.fatigue_index <= -0.1 ? '#10B981' : latest.fatigue_index <= 5.0 ? '#F59E0B' : '#EF4444'
                       }}>
                         {Number(latest.fatigue_index).toFixed(2)}
-                      </span>
-                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        ({latest.fatigue_index <= -0.1 ? 'Low' : latest.fatigue_index <= 0.5 ? 'Neutral' : latest.fatigue_index <= 5.0 ? 'Mild' : 'High'})
                       </span>
                     </div>
                   )}
                   {latest.monotony != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Monotony:</span>
-                      <span className="font-bold" style={{
-                        color: latest.monotony <= 1.5 ? '#22c55e' : latest.monotony <= 2.0 ? '#f59e0b' : '#ef4444'
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Monotony</span>
+                      <span style={{
+                        fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',
+                        color: latest.monotony <= 1.5 ? '#10B981' : latest.monotony <= 2.0 ? '#F59E0B' : '#EF4444'
                       }}>
                         {isFinite(latest.monotony) ? Number(latest.monotony).toFixed(2) : 'INF'}
                       </span>
@@ -229,7 +247,7 @@ export default function PlayerDetail() {
                 </div>
               </div>
               <div>
-                <div className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>ACWR NRG & Fatigue Index — 12 Week Trend</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>ACWR NRG & Fatigue Index — 12 Week Trend</div>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={acwrNrgChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -237,10 +255,10 @@ export default function PlayerDetail() {
                     <YAxis yAxisId="left" domain={[0, 2.5]} tick={axisTickStyle} />
                     <YAxis yAxisId="right" orientation="right" tick={axisTickStyle} />
                     <Tooltip contentStyle={tooltipStyle} />
-                    <Legend />
-                    <ReferenceLine yAxisId="left" y={0.8} stroke="#3b82f6" strokeDasharray="4 4" strokeOpacity={0.5} />
-                    <ReferenceLine yAxisId="left" y={1.3} stroke="#22c55e" strokeDasharray="4 4" strokeOpacity={0.5} />
-                    <ReferenceLine yAxisId="left" y={1.5} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.5} />
+                    <Legend wrapperStyle={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }} />
+                    <ReferenceLine yAxisId="left" y={0.8} stroke="#3B82F6" strokeDasharray="4 4" strokeOpacity={0.5} />
+                    <ReferenceLine yAxisId="left" y={1.3} stroke="#10B981" strokeDasharray="4 4" strokeOpacity={0.5} />
+                    <ReferenceLine yAxisId="left" y={1.5} stroke="#EF4444" strokeDasharray="4 4" strokeOpacity={0.5} />
                     <Line yAxisId="left" type="monotone" dataKey="ACWR NRG" stroke="#E30613" strokeWidth={2.5} dot={{ r: 3, fill: '#E30613' }} />
                     <Line yAxisId="right" type="monotone" dataKey="Fatigue Index" stroke="#a855f7" strokeWidth={2} dot={{ r: 2, fill: '#a855f7' }} />
                   </LineChart>
@@ -251,8 +269,11 @@ export default function PlayerDetail() {
           </div>
 
           {/* Section B: Load Achievement Panel */}
+          <div className="section-label">Load Achievement</div>
           <div className="glass-card p-5 mb-6">
-            <h2 className="section-heading">Load Achievement vs Match Reference</h2>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Weekly Load vs Match Reference
+            </div>
             <LoadBar metricKey="total_distance" label="Total Distance" value={latest.total_distance} refValue={resolvedRefs.total_distance} pct={latest.load_pct_total_distance} />
             <LoadBar metricKey="hsr" label="HSR (Zone 4+5)" value={latest.hsr_distance} refValue={resolvedRefs.hsr} pct={latest.load_pct_hsr} />
             <LoadBar metricKey="sprint" label="Sprint (Zone 5)" value={latest.sprint_distance} refValue={resolvedRefs.sprint} pct={latest.load_pct_sprint} />
@@ -264,30 +285,38 @@ export default function PlayerDetail() {
 
           {/* Daily Load Distribution */}
           {dailyLoadData.length > 0 && (
-            <div className="glass-card p-5 mb-6">
-              <h2 className="section-heading">Daily Load Distribution (NRG J/kg)</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={dailyLoadData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
-                  <XAxis dataKey="day" tick={axisTickStyle} />
-                  <YAxis tick={axisTickStyle} />
-                  <Tooltip contentStyle={tooltipStyle} />
-                  <Bar dataKey="NRG" radius={[6, 6, 0, 0]}>
-                    {dailyLoadData.map((entry, i) => {
-                      const max = Math.max(...dailyLoadData.map(d => d.NRG))
-                      const ratio = max > 0 ? entry.NRG / max : 0
-                      return <Cell key={i} fill={ratio > 0.8 ? '#E30613' : ratio > 0.5 ? '#f59e0b' : '#22c55e'} fillOpacity={0.85} />
-                    })}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-              <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} />
-            </div>
+            <>
+              <div className="section-label">Daily Load</div>
+              <div className="glass-card p-5 mb-6">
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                  Daily NRG Distribution (J/kg)
+                </div>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={dailyLoadData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+                    <XAxis dataKey="day" tick={axisTickStyle} />
+                    <YAxis tick={axisTickStyle} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="NRG" radius={[6, 6, 0, 0]}>
+                      {dailyLoadData.map((entry, i) => {
+                        const max = Math.max(...dailyLoadData.map(d => d.NRG))
+                        const ratio = max > 0 ? entry.NRG / max : 0
+                        return <Cell key={i} fill={ratio > 0.8 ? 'rgba(227,6,19,0.6)' : ratio > 0.5 ? 'rgba(245,158,11,0.6)' : 'rgba(16,185,129,0.6)'} />
+                      })}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} />
+              </div>
+            </>
           )}
 
           {/* 12-Week Performance Trends */}
+          <div className="section-label">Trends</div>
           <div className="glass-card p-5 mb-6">
-            <h2 className="section-heading">12-Week Index Trends</h2>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              12-Week Index Trends
+            </div>
             <ResponsiveContainer width="100%" height={280}>
               <AreaChart data={chartData}>
                 <defs>
@@ -296,18 +325,18 @@ export default function PlayerDetail() {
                     <stop offset="95%" stopColor="#E30613" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="rttGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.15} />
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
                 <XAxis dataKey="week" tick={axisTickStyle} />
                 <YAxis domain={[0, 10]} tick={axisTickStyle} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend />
+                <Legend wrapperStyle={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }} />
                 <Area type="monotone" dataKey="Performance" stroke="#E30613" strokeWidth={2.5} fill="url(#perfGrad)" dot={{ r: 3, fill: '#E30613' }} />
-                <Area type="monotone" dataKey="RTT" stroke="#3b82f6" strokeWidth={2} fill="url(#rttGrad)" dot={{ r: 2, fill: '#3b82f6' }} />
-                <Line type="monotone" dataKey="RS" stroke="#22c55e" strokeWidth={2} dot={false} />
+                <Area type="monotone" dataKey="RTT" stroke="#3B82F6" strokeWidth={2} fill="url(#rttGrad)" dot={{ r: 2, fill: '#3B82F6' }} />
+                <Line type="monotone" dataKey="RS" stroke="#10B981" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="TMI" stroke="#a855f7" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
               </AreaChart>
             </ResponsiveContainer>
@@ -316,7 +345,9 @@ export default function PlayerDetail() {
 
           {/* Injury Risk & ACWR Trend */}
           <div className="glass-card p-5 mb-6">
-            <h2 className="section-heading">Injury Risk & ACWR Trend</h2>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Injury Risk & ACWR Trend
+            </div>
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={riskChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -324,11 +355,11 @@ export default function PlayerDetail() {
                 <YAxis yAxisId="left" domain={[0, 10]} tick={axisTickStyle} />
                 <YAxis yAxisId="right" orientation="right" domain={[0, 3]} tick={axisTickStyle} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend />
-                <ReferenceLine yAxisId="right" y={1.3} stroke="#f59e0b" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: '1.3', fill: '#f59e0b', fontSize: 9 }} />
-                <ReferenceLine yAxisId="right" y={1.5} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: '1.5', fill: '#ef4444', fontSize: 9 }} />
-                <Line yAxisId="left" type="monotone" dataKey="Injury Risk" stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3, fill: '#ef4444' }} />
-                <Line yAxisId="right" type="monotone" dataKey="ACWR TD" stroke="#f59e0b" strokeWidth={2} dot={{ r: 2, fill: '#f59e0b' }} />
+                <Legend wrapperStyle={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }} />
+                <ReferenceLine yAxisId="right" y={1.3} stroke="#F59E0B" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: '1.3', fill: '#F59E0B', fontSize: 9 }} />
+                <ReferenceLine yAxisId="right" y={1.5} stroke="#EF4444" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: '1.5', fill: '#EF4444', fontSize: 9 }} />
+                <Line yAxisId="left" type="monotone" dataKey="Injury Risk" stroke="#EF4444" strokeWidth={2.5} dot={{ r: 3, fill: '#EF4444' }} />
+                <Line yAxisId="right" type="monotone" dataKey="ACWR TD" stroke="#F59E0B" strokeWidth={2} dot={{ r: 2, fill: '#F59E0B' }} />
               </LineChart>
             </ResponsiveContainer>
             <ExplanationBox title="Injury Risk Explanation" text={explanations?.injury_risk} />
@@ -336,7 +367,9 @@ export default function PlayerDetail() {
 
           {/* Weekly NRG & Monotony Trend */}
           <div className="glass-card p-5 mb-6">
-            <h2 className="section-heading">Weekly NRG Expenditure & Monotony Trend</h2>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+              Weekly NRG Expenditure & Monotony
+            </div>
             <ResponsiveContainer width="100%" height={240}>
               <LineChart data={nrgTrendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
@@ -344,24 +377,30 @@ export default function PlayerDetail() {
                 <YAxis yAxisId="left" tick={axisTickStyle} />
                 <YAxis yAxisId="right" orientation="right" domain={[0, 4]} tick={axisTickStyle} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Legend />
-                <Line yAxisId="left" type="monotone" dataKey="Total NRG" stroke="#10b981" strokeWidth={2.5} dot={{ r: 3, fill: '#10b981' }} />
+                <Legend wrapperStyle={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem' }} />
+                <Line yAxisId="left" type="monotone" dataKey="Total NRG" stroke="#10B981" strokeWidth={2.5} dot={{ r: 3, fill: '#10B981' }} />
                 <Line yAxisId="right" type="monotone" dataKey="Monotony" stroke="#a855f7" strokeWidth={2} dot={{ r: 2, fill: '#a855f7' }} />
-                <ReferenceLine yAxisId="right" y={2.0} stroke="#ef4444" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: 'Mon 2.0', fill: '#ef4444', fontSize: 9 }} />
+                <ReferenceLine yAxisId="right" y={2.0} stroke="#EF4444" strokeDasharray="4 4" strokeOpacity={0.4} label={{ value: 'Mon 2.0', fill: '#EF4444', fontSize: 9 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
 
           {/* Recommendations */}
           {recommendations.length > 0 && (
-            <div className="mb-6">
-              <h2 className="section-heading">Load Management Recommendations</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
-                {recommendations.map((rec, i) => (
-                  <RecommendationCard key={i} rec={rec} />
-                ))}
+            <>
+              <div className="section-label">Recommendations</div>
+              <div className="rec-panel">
+                <div className="rec-panel-header">
+                  <span className="rec-panel-title">Load Management Recommendations</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Based on KB v1.0</span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+                  {recommendations.map((rec, i) => (
+                    <RecommendationCard key={i} rec={rec} />
+                  ))}
+                </div>
               </div>
-            </div>
+            </>
           )}
         </>
       )}

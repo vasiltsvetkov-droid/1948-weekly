@@ -83,7 +83,7 @@ function getMonday(dateStr) {
 
 export default function Upload() {
   const [files, setFiles] = useState([])
-  const [parsedData, setParsedData] = useState(null) // { playerName: { sessions, weekStart } }
+  const [parsedData, setParsedData] = useState(null)
   const [processing, setProcessing] = useState(false)
   const [newPlayerModal, setNewPlayerModal] = useState(null)
   const [newPlayerPosition, setNewPlayerPosition] = useState('CM')
@@ -150,7 +150,6 @@ export default function Upload() {
     try {
       const playerNames = Object.keys(parsedData)
 
-      // Look up or create players
       const { data: existingPlayers } = await supabase
         .from('players')
         .select('*')
@@ -161,7 +160,6 @@ export default function Upload() {
         playerMap[p.name] = p
       }
 
-      // Check for unknown players
       for (const name of playerNames) {
         if (!playerMap[name]) {
           setNewPlayerModal(name)
@@ -192,7 +190,6 @@ export default function Upload() {
     setNewPlayerModal(null)
     setProcessing(true)
 
-    // Rebuild player map and check again
     const playerNames = Object.keys(parsedData)
     const { data: allPlayers } = await supabase
       .from('players')
@@ -204,7 +201,6 @@ export default function Upload() {
       playerMap[p.name] = p
     }
 
-    // Check for more unknown players
     for (const name of playerNames) {
       if (!playerMap[name]) {
         setNewPlayerModal(name)
@@ -224,7 +220,6 @@ export default function Upload() {
         const player = playerMap[name]
         if (!player || !weekStart) continue
 
-        // Get match references
         const { data: refRows } = await supabase
           .from('match_references')
           .select('*')
@@ -235,7 +230,6 @@ export default function Upload() {
           matchRefs[r.metric_key] = r.value_per90
         }
 
-        // Get history (up to 4 prior weeks)
         const { data: historyRows } = await supabase
           .from('weekly_aggregates')
           .select('*')
@@ -246,7 +240,6 @@ export default function Upload() {
 
         const history = (historyRows || []).reverse()
 
-        // Get personal max speed
         const { data: speedRows } = await supabase
           .from('weekly_aggregates')
           .select('top_speed')
@@ -256,7 +249,6 @@ export default function Upload() {
 
         const personalMaxSpeed = speedRows?.[0]?.top_speed || null
 
-        // Compute metrics
         const metrics = computeMetrics({
           sessions,
           matchRefs,
@@ -265,7 +257,6 @@ export default function Upload() {
           personalMaxSpeed,
         })
 
-        // Write weekly_sessions
         const sessionRows = sessions.map(s => ({
           player_id: player.id,
           week_start_date: weekStart,
@@ -276,10 +267,8 @@ export default function Upload() {
         const { error: sessErr } = await supabase.from('weekly_sessions').insert(sessionRows)
         if (sessErr) throw new Error(`weekly_sessions insert: ${sessErr.message}`)
 
-        // Sanitize numeric values (NaN/Infinity → null)
         const num = v => (typeof v === 'number' && isFinite(v)) ? v : null
 
-        // Upsert weekly_aggregates
         const aggregateRow = {
           player_id: player.id,
           week_start_date: weekStart,
@@ -333,7 +322,6 @@ export default function Upload() {
         processedIds.push(player.id)
       }
 
-      // Update team snapshot
       const weekStarts = [...new Set(Object.values(parsedData).map(d => d.weekStart).filter(Boolean))]
       for (const ws of weekStarts) {
         const { data: weekAggs } = await supabase
@@ -363,17 +351,22 @@ export default function Upload() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Upload CSV Data</h1>
+      <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '1.9rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Upload CSV Data</h1>
 
       {/* Drop Zone */}
       <div
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        className="border-2 border-dashed border-slate-600 rounded-xl p-12 text-center hover:border-[#E8530A] transition-colors cursor-pointer"
+        className="upload-zone"
         onClick={() => document.getElementById('file-input').click()}
       >
-        <div className="text-slate-400 text-lg mb-2">Drop CSV files here or click to browse</div>
-        <div className="text-slate-500 text-sm">Accepts multiple Barin Sports PRO GPS export files</div>
+        <div style={{ fontSize: '2.5rem', opacity: 0.35, marginBottom: '0.75rem' }}>📂</div>
+        <div style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
+          Drop CSV files or click to upload
+        </div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', letterSpacing: '0.5px' }}>
+          One or more Barin Sports PRO weekly summary exports
+        </div>
         <input
           id="file-input"
           type="file"
@@ -385,45 +378,67 @@ export default function Upload() {
       </div>
 
       {files.length > 0 && (
-        <div className="mt-4 text-sm text-slate-400">
-          {files.length} file(s) selected: {files.map(f => f.name).join(', ')}
+        <div className="mt-4 flex flex-wrap gap-2 justify-center">
+          {files.map((f, i) => (
+            <div key={i} className="flex items-center gap-1.5 px-3 py-1" style={{
+              background: 'rgba(227,6,19,.1)',
+              border: '1px solid rgba(227,6,19,.3)',
+              borderRadius: '3px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.65rem',
+              color: '#ff6677',
+            }}>
+              ✓ {f.name}
+            </div>
+          ))}
         </div>
       )}
 
       {error && (
-        <div className="mt-4 text-red-400 bg-red-400/10 rounded-lg px-4 py-2 text-sm">{error}</div>
+        <div className="mt-4" style={{
+          padding: '0.625rem 1rem',
+          background: 'rgba(239,68,68,0.06)',
+          border: '1px solid rgba(239,68,68,0.2)',
+          borderRadius: '4px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: '0.7rem',
+          color: '#EF4444',
+        }}>{error}</div>
       )}
 
       {/* Session Preview */}
       {parsedData && (
         <div className="mt-6 space-y-4">
           {Object.entries(parsedData).map(([name, { sessions, weekStart }]) => (
-            <div key={name} className="bg-slate-800 rounded-xl p-4">
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="font-semibold">{name}</h3>
-                <span className="text-xs text-slate-400">Week: {weekStart}</span>
+            <div key={name} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '0.95rem' }}>{name}</h3>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>Week: {weekStart}</span>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
                   <thead>
-                    <tr className="text-slate-400 border-b border-slate-700">
-                      <th className="text-left py-1 pr-3">Date</th>
-                      <th className="text-right py-1 px-2">Total Dist</th>
-                      <th className="text-right py-1 px-2">HSR</th>
-                      <th className="text-right py-1 px-2">Sprint</th>
-                      <th className="text-right py-1 px-2">HMLD</th>
-                      <th className="text-right py-1 px-2">NRG</th>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      {['Date', 'Total Dist', 'HSR', 'Sprint', 'HMLD', 'NRG'].map((h, i) => (
+                        <th key={h} className={`py-2 px-3 ${i === 0 ? 'text-left' : 'text-right'}`} style={{
+                          fontSize: '0.55rem',
+                          letterSpacing: '1.5px',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-muted)',
+                          fontWeight: 400,
+                        }}>{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {sessions.map((s, i) => (
-                      <tr key={i} className="border-b border-slate-700/50">
-                        <td className="py-1 pr-3">{s[CSV_COLUMNS.date] || '—'}</td>
-                        <td className="text-right px-2">{Number(s[CSV_COLUMNS.total_distance] || 0).toFixed(0)}</td>
-                        <td className="text-right px-2">{Number(s[CSV_COLUMNS.zone4plus5] || 0).toFixed(0)}</td>
-                        <td className="text-right px-2">{Number(s[CSV_COLUMNS.zone5_distance] || 0).toFixed(0)}</td>
-                        <td className="text-right px-2">{Number(s[CSV_COLUMNS.hmld] || 0).toFixed(0)}</td>
-                        <td className="text-right px-2">{Number(s[CSV_COLUMNS.total_nrg] || 0).toFixed(0)}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td className="py-1.5 px-3">{s[CSV_COLUMNS.date] || '—'}</td>
+                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_distance] || 0).toFixed(0)}</td>
+                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone4plus5] || 0).toFixed(0)}</td>
+                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone5_distance] || 0).toFixed(0)}</td>
+                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.hmld] || 0).toFixed(0)}</td>
+                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_nrg] || 0).toFixed(0)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -435,8 +450,8 @@ export default function Upload() {
           <button
             onClick={handleConfirm}
             disabled={processing}
-            className="w-full py-3 rounded-xl font-medium text-white disabled:opacity-50"
-            style={{ backgroundColor: '#E8530A' }}
+            className="btn-primary w-full py-3 disabled:opacity-50"
+            style={{ fontSize: '1.1rem', letterSpacing: '2px', textTransform: 'uppercase' }}
           >
             {processing ? 'Processing...' : 'Confirm & Process'}
           </button>
@@ -445,28 +460,45 @@ export default function Upload() {
 
       {/* New Player Modal */}
       {newPlayerModal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl p-6 max-w-sm w-full">
-            <h3 className="font-semibold mb-4">New Player Detected</h3>
-            <p className="text-sm text-slate-400 mb-4">
+        <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-card p-6 max-w-sm w-full" style={{ background: 'var(--glass-bg)' }}>
+            <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>New Player Detected</h3>
+            <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
               Player "{newPlayerModal}" not found. Create a new player record:
             </p>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Name</label>
+                <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Name</label>
                 <input
                   type="text"
                   value={newPlayerModal}
                   readOnly
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+                  className="w-full px-3 py-2 rounded-lg"
+                  style={{
+                    fontFamily: 'var(--font-data)',
+                    fontSize: '0.85rem',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Position</label>
+                <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Position</label>
                 <select
                   value={newPlayerPosition}
                   onChange={(e) => setNewPlayerPosition(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+                  className="w-full px-3 py-2 rounded-lg"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.7rem',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
                 >
                   {['CB', 'FB', 'CM', 'WM', 'ST', 'GK'].map(p => (
                     <option key={p} value={p}>{p}</option>
@@ -476,14 +508,15 @@ export default function Upload() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => { setNewPlayerModal(null); setProcessing(false) }}
-                  className="flex-1 py-2 rounded-lg bg-slate-700 text-sm"
+                  className="flex-1 py-2 rounded-lg btn-icon"
+                  style={{ fontFamily: 'var(--font-main)', fontSize: '0.85rem', fontWeight: 600 }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={createPlayerAndContinue}
-                  className="flex-1 py-2 rounded-lg text-white text-sm font-medium"
-                  style={{ backgroundColor: '#E8530A' }}
+                  className="flex-1 py-2 rounded-lg btn-primary"
+                  style={{ fontSize: '0.85rem' }}
                 >
                   Create & Continue
                 </button>
