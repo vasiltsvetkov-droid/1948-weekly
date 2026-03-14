@@ -1,6 +1,19 @@
 import { useState } from 'react'
 import CircularGauge from './CircularGauge'
 
+function scoreColor(v) {
+  if (v >= 7.5) return '#10B981'
+  if (v >= 5.5) return '#F59E0B'
+  if (v >= 3.5) return '#F97316'
+  return '#EF4444'
+}
+
+function invertedColor(v) {
+  if (v <= 3) return '#10B981'
+  if (v <= 6) return '#F59E0B'
+  return '#EF4444'
+}
+
 const interpretations = {
   api: (v) => v >= 7 ? 'Excellent status' : v >= 5 ? 'Moderate status' : 'Needs attention',
   rtt: (v) => v >= 7 ? 'Ready to train' : v >= 5 ? 'Caution advised' : 'Rest recommended',
@@ -14,19 +27,42 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
   const displayVal = value != null ? (value / 10).toFixed(1) : '—'
   const numVal = value != null ? value / 10 : 0
   const interpret = interpretations[dbKey]
+  const color = inverted ? invertedColor(numVal) : scoreColor(numVal)
 
   return (
-    <div className="glass-card p-4 flex flex-col items-center min-w-[140px] relative cursor-default">
-      <div className="text-xs uppercase tracking-wide mb-2 flex items-center gap-1.5" style={{ color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.06em' }}>
+    <div
+      className="index-card p-4 min-w-[140px] relative cursor-default"
+      style={{ '--ic-color': color }}
+    >
+      <div style={{
+        fontFamily: 'var(--font-mono)',
+        fontSize: '0.6rem',
+        letterSpacing: '2px',
+        textTransform: 'uppercase',
+        color: 'var(--text-secondary)',
+        marginBottom: '1rem',
+        textAlign: 'center',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+      }}>
         {label}
         {explanation && (
           <button
             onClick={() => setShowExplanation(!showExplanation)}
-            className="w-4 h-4 rounded-full text-[10px] flex items-center justify-center transition-all"
+            className="transition-all"
             style={{
-              background: showExplanation ? 'var(--color-primary)' : 'rgba(255,255,255,0.1)',
+              width: '16px',
+              height: '16px',
+              borderRadius: '50%',
+              fontSize: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: showExplanation ? 'var(--color-primary)' : 'rgba(148,163,184,0.1)',
               color: showExplanation ? 'white' : 'var(--text-secondary)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: '1px solid rgba(148,163,184,0.15)',
+              cursor: 'pointer',
             }}
             title="View explanation"
           >
@@ -35,16 +71,25 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
         )}
       </div>
       <div className="relative flex items-center justify-center mb-2">
-        <CircularGauge value={numVal} inverted={inverted} />
-        <div className="absolute text-2xl font-bold" style={{
-          color: inverted
-            ? (numVal >= 6 ? '#ef4444' : numVal >= 3 ? '#f59e0b' : '#22c55e')
-            : (numVal >= 8 ? '#22c55e' : numVal >= 6 ? '#3b82f6' : numVal >= 4 ? '#f59e0b' : '#ef4444')
+        <CircularGauge value={numVal} inverted={inverted} color={color} />
+        <div className="absolute" style={{
+          fontFamily: 'var(--font-main)',
+          fontWeight: 700,
+          fontSize: '1.6rem',
+          lineHeight: 1,
+          color,
         }}>
           {displayVal}
         </div>
       </div>
-      <div className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+      <div style={{
+        fontFamily: 'var(--font-main)',
+        fontWeight: 600,
+        fontSize: '0.85rem',
+        color,
+        textAlign: 'center',
+        marginTop: '0.75rem',
+      }}>
         {interpret ? interpret(numVal) : ''}
       </div>
       {showExplanation && explanation && (
@@ -60,18 +105,18 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
           }}
         >
           <div className="flex justify-between items-start mb-1.5">
-            <span className="text-xs font-semibold" style={{ color: 'var(--color-primary)' }}>{label} Explanation</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--color-primary)' }}>{label} Explanation</span>
             <button
               onClick={() => setShowExplanation(false)}
-              className="text-xs ml-2 transition-colors"
-              style={{ color: 'var(--text-muted)' }}
-              onMouseEnter={e => e.currentTarget.style.color = 'white'}
+              className="transition-colors"
+              style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
             >
-              x
+              ✕
             </button>
           </div>
-          <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{explanation}</p>
+          <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>{explanation}</p>
         </div>
       )}
     </div>
