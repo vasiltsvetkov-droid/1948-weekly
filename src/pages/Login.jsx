@@ -31,14 +31,14 @@ export default function Login() {
           <p className="text-slate-400 text-sm mt-1">Analytics Dashboard</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-slate-800 rounded-xl p-6 shadow-lg space-y-4">
+        <form onSubmit={handleSubmit} className="bg-slate-800 rounded-none p-6 shadow-lg space-y-4">
           <div>
             <label className="block text-xs text-slate-400 mb-1">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-[#E8530A]"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-none text-white text-sm focus:outline-none focus:border-[#E8530A]"
               required
             />
           </div>
@@ -48,19 +48,19 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm focus:outline-none focus:border-[#E8530A]"
+              className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-none text-white text-sm focus:outline-none focus:border-[#E8530A]"
               required
             />
           </div>
 
           {error && (
-            <div className="text-red-400 text-sm bg-red-400/10 rounded-lg px-3 py-2">{error}</div>
+            <div className="text-red-400 text-sm bg-red-400/10 rounded-none px-3 py-2">{error}</div>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 rounded-lg font-medium text-white text-sm disabled:opacity-50"
+            className="w-full py-2 rounded-none font-medium text-white text-sm disabled:opacity-50"
             style={{ backgroundColor: '#E8530A' }}
           >
             {loading ? 'Signing in...' : 'Sign In'}

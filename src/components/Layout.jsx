@@ -75,7 +75,7 @@ export default function Layout() {
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm transition-all duration-200 ${
+                `flex items-center gap-2 px-3 py-2.5 text-sm transition-all duration-200 ${
                   isActive ? 'font-medium' : ''
                 }`
               }
@@ -103,7 +103,7 @@ export default function Layout() {
           </button>
           <button
             onClick={handleLogout}
-            className="flex-1 px-3 py-2 text-sm rounded-lg text-left transition-all duration-200"
+            className="flex-1 px-3 py-2 text-sm text-left transition-all duration-200"
             style={{ fontFamily: 'var(--font-main)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}
             onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
             onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
