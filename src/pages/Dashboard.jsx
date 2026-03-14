@@ -38,7 +38,7 @@ export default function Dashboard() {
     : null
 
   return (
-    <div className="p-6 md:p-10 min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col" style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <div className="flex items-center justify-between mb-8">
         <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2.2rem', color: 'var(--text-primary)' }}>Dashboard</h1>
         <div className="flex items-center gap-3">
@@ -92,55 +92,57 @@ export default function Dashboard() {
           <Link to="/upload" style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-mono)', fontSize: '0.85rem' }} className="underline mt-2 inline-block">Upload CSV data</Link>
         </div>
       ) : (
-        <div className="glass-card flex-1">
-          <table className="w-full" style={{ fontFamily: 'var(--font-data)', fontSize: '1rem', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                {['Player', 'Pos', 'PI', 'RTT', 'RS', 'TMI', 'Injury Risk'].map((h, i) => (
-                  <th key={h} className={`px-5 py-4 ${i < 2 ? 'text-left' : 'text-right'}`} style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.7rem',
-                    letterSpacing: '2px',
-                    textTransform: 'uppercase',
-                    color: 'var(--text-muted)',
-                    fontWeight: 400,
-                  }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {squad.map(row => (
-                <tr
-                  key={row.id}
-                  onClick={() => navigate(`/player/${row.player_id}`)}
-                  className="cursor-pointer transition-colors"
-                  style={{
-                    borderBottom: '1px solid rgba(255,255,255,0.03)',
-                    background: injuryBg(row.injury_risk),
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = injuryBg(row.injury_risk) || 'rgba(255,255,255,0.01)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = injuryBg(row.injury_risk) }}
-                >
-                  <td className="px-5 py-4" style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{row.players?.name || '—'}</td>
-                  <td className="px-5 py-4"><span className="pos-badge">{row.players?.position || '—'}</span></td>
-                  <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.api)}</td>
-                  <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.rtt)}</td>
-                  <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.rs)}</td>
-                  <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.tmi)}</td>
-                  <td className="text-right px-5 py-4" style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.95rem',
-                    fontWeight: 600,
-                    color: row.injury_risk != null && row.injury_risk / 10 > 6 ? '#EF4444'
-                      : row.injury_risk != null && row.injury_risk / 10 > 4 ? '#F59E0B'
-                      : '#10B981'
-                  }}>
-                    {fmt(row.injury_risk)}
-                  </td>
+        <div className="glass-card flex-1 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ fontFamily: 'var(--font-data)', fontSize: '1rem', borderCollapse: 'collapse', minWidth: '700px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  {['Player', 'Pos', 'PI', 'RTT', 'RS', 'TMI', 'Injury Risk'].map((h, i) => (
+                    <th key={h} className={`px-5 py-4 ${i < 2 ? 'text-left' : 'text-right'}`} style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.7rem',
+                      letterSpacing: '2px',
+                      textTransform: 'uppercase',
+                      color: 'var(--text-muted)',
+                      fontWeight: 400,
+                    }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {squad.map(row => (
+                  <tr
+                    key={row.id}
+                    onClick={() => navigate(`/player/${row.player_id}`)}
+                    className="cursor-pointer transition-colors"
+                    style={{
+                      borderBottom: '1px solid rgba(255,255,255,0.03)',
+                      background: injuryBg(row.injury_risk),
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = injuryBg(row.injury_risk) || 'rgba(255,255,255,0.01)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = injuryBg(row.injury_risk) }}
+                  >
+                    <td className="px-5 py-4" style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>{row.players?.name || '—'}</td>
+                    <td className="px-5 py-4"><span className="pos-badge">{row.players?.position || '—'}</span></td>
+                    <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.api)}</td>
+                    <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.rtt)}</td>
+                    <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.rs)}</td>
+                    <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.tmi)}</td>
+                    <td className="text-right px-5 py-4" style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      color: row.injury_risk != null && row.injury_risk / 10 > 6 ? '#EF4444'
+                        : row.injury_risk != null && row.injury_risk / 10 > 4 ? '#F59E0B'
+                        : '#10B981'
+                    }}>
+                      {fmt(row.injury_risk)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

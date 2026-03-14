@@ -64,7 +64,7 @@ export default function History() {
   }
 
   return (
-    <div className="p-6 md:p-10">
+    <div style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{player.name}</h1>

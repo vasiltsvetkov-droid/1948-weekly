@@ -56,7 +56,7 @@ export default function Layout() {
           borderRight: '1px solid var(--glass-border)',
         }}
       >
-        <div className="p-4" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        <div className="px-4 pt-6 pb-4" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer">
             <img
               src={theme === 'dark' ? darkLogo : lightLogo}
@@ -114,7 +114,7 @@ export default function Layout() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 pb-16 md:pb-0 relative z-1">
+      <main className="flex-1 pb-16 md:pb-0 relative z-1 overflow-x-hidden">
         <Outlet />
       </main>
 

@@ -84,7 +84,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-6 md:p-10">
+    <div style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Tabs */}

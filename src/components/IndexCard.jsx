@@ -31,7 +31,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
 
   return (
     <div
-      className="index-card p-5 min-w-[160px] relative cursor-default"
+      className="index-card p-5 min-w-[160px] flex-1 relative cursor-default"
       style={{ '--ic-color': color }}
     >
       <div style={{
