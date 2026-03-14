@@ -201,7 +201,7 @@ body {
   flex-direction: column;
   align-items: center;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   transition: all 300ms;
 }
 .index-card:hover {

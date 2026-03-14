@@ -181,7 +181,7 @@ export default function PlayerDetail() {
   }))
 
   return (
-    <div className="p-6 md:p-10" ref={pageRef}>
+    <div ref={pageRef} style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -204,7 +204,7 @@ export default function PlayerDetail() {
         <>
           {/* Section A: Index Hero Cards */}
           <div className="section-label">Performance Indexes</div>
-          <div className="flex flex-wrap gap-3 mb-6">
+          <div className="flex flex-wrap gap-4 mb-8 justify-center">
             <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} />
             <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
             <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} />

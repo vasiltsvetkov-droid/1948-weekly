@@ -350,7 +350,7 @@ export default function Upload() {
   }
 
   return (
-    <div className="p-6 md:p-10">
+    <div style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '1.9rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Upload CSV Data</h1>
 
       {/* Drop Zone */}
