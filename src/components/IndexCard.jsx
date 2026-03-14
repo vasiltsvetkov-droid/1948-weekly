@@ -31,12 +31,12 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
 
   return (
     <div
-      className="index-card p-4 min-w-[140px] relative cursor-default"
+      className="index-card p-5 min-w-[160px] relative cursor-default"
       style={{ '--ic-color': color }}
     >
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '0.6rem',
+        fontSize: '0.7rem',
         letterSpacing: '2px',
         textTransform: 'uppercase',
         color: 'var(--text-secondary)',
@@ -75,7 +75,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
         <div className="absolute" style={{
           fontFamily: 'var(--font-main)',
           fontWeight: 700,
-          fontSize: '1.6rem',
+          fontSize: '1.8rem',
           lineHeight: 1,
           color,
         }}>
@@ -85,7 +85,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
       <div style={{
         fontFamily: 'var(--font-main)',
         fontWeight: 600,
-        fontSize: '0.85rem',
+        fontSize: '0.95rem',
         color,
         textAlign: 'center',
         marginTop: '0.75rem',
@@ -99,8 +99,8 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid var(--glass-border)',
-            borderRadius: '12px',
-            padding: '0.875rem',
+            borderRadius: '2px',
+            padding: '1rem',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
           }}
         >

@@ -84,16 +84,16 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-6 md:p-10">
       <h1 className="text-2xl font-bold mb-6">Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-800 rounded-lg p-1 w-fit">
+      <div className="flex gap-1 mb-6 bg-slate-800 rounded-none p-1 w-fit">
         {['squad', 'refs'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-none text-sm font-medium transition-colors ${
               tab === t ? 'bg-slate-700 text-white' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -105,14 +105,14 @@ export default function Settings() {
       {tab === 'squad' && (
         <div>
           {/* Add Player */}
-          <div className="bg-slate-800 rounded-xl p-4 mb-4 flex gap-2 items-end flex-wrap">
+          <div className="bg-slate-800 rounded-none p-4 mb-4 flex gap-2 items-end flex-wrap">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-xs text-slate-400 mb-1">Name</label>
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-none text-white text-sm"
                 placeholder="Player name"
               />
             </div>
@@ -121,14 +121,14 @@ export default function Settings() {
               <select
                 value={newPosition}
                 onChange={(e) => setNewPosition(e.target.value)}
-                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+                className="px-3 py-2 bg-slate-700 border border-slate-600 rounded-none text-white text-sm"
               >
                 {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
             <button
               onClick={handleAddPlayer}
-              className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+              className="px-4 py-2 rounded-none text-white text-sm font-medium"
               style={{ backgroundColor: '#E8530A' }}
             >
               Add Player
@@ -136,7 +136,7 @@ export default function Settings() {
           </div>
 
           {/* Player Table */}
-          <div className="bg-slate-800 rounded-xl overflow-hidden">
+          <div className="bg-slate-800 rounded-none overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-400 border-b border-slate-700 text-xs uppercase tracking-wide">
@@ -210,20 +210,20 @@ export default function Settings() {
               <select
                 value={selectedPlayerId || ''}
                 onChange={(e) => setSelectedPlayerId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white text-sm"
+                className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-none text-white text-sm"
               >
                 {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.position})</option>)}
               </select>
             </div>
             <button
               onClick={handleLoadDefaults}
-              className="px-3 py-2 rounded-lg bg-slate-700 text-sm text-slate-300 hover:text-white"
+              className="px-3 py-2 rounded-none bg-slate-700 text-sm text-slate-300 hover:text-white"
             >
               Load Position Defaults
             </button>
           </div>
 
-          <div className="bg-slate-800 rounded-xl overflow-hidden">
+          <div className="bg-slate-800 rounded-none overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-slate-400 border-b border-slate-700 text-xs uppercase tracking-wide">
@@ -256,7 +256,7 @@ export default function Settings() {
           <button
             onClick={handleSaveRefs}
             disabled={saving}
-            className="mt-4 px-6 py-2 rounded-lg text-white text-sm font-medium disabled:opacity-50"
+            className="mt-4 px-6 py-2 rounded-none text-white text-sm font-medium disabled:opacity-50"
             style={{ backgroundColor: '#E8530A' }}
           >
             {saving ? 'Saving...' : 'Save Match References'}

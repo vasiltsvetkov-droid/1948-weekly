@@ -350,7 +350,7 @@ export default function Upload() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+    <div className="p-6 md:p-10">
       <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '1.9rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Upload CSV Data</h1>
 
       {/* Drop Zone */}
@@ -473,7 +473,7 @@ export default function Upload() {
                   type="text"
                   value={newPlayerModal}
                   readOnly
-                  className="w-full px-3 py-2 rounded-lg"
+                  className="w-full px-3 py-2 rounded-none"
                   style={{
                     fontFamily: 'var(--font-data)',
                     fontSize: '0.85rem',
@@ -489,7 +489,7 @@ export default function Upload() {
                 <select
                   value={newPlayerPosition}
                   onChange={(e) => setNewPlayerPosition(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg"
+                  className="w-full px-3 py-2 rounded-none"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.7rem',
@@ -508,14 +508,14 @@ export default function Upload() {
               <div className="flex gap-2 mt-4">
                 <button
                   onClick={() => { setNewPlayerModal(null); setProcessing(false) }}
-                  className="flex-1 py-2 rounded-lg btn-icon"
+                  className="flex-1 py-2 rounded-none btn-icon"
                   style={{ fontFamily: 'var(--font-main)', fontSize: '0.85rem', fontWeight: 600 }}
                 >
                   Cancel
                 </button>
                 <button
                   onClick={createPlayerAndContinue}
-                  className="flex-1 py-2 rounded-lg btn-primary"
+                  className="flex-1 py-2 rounded-none btn-primary"
                   style={{ fontSize: '0.85rem' }}
                 >
                   Create & Continue

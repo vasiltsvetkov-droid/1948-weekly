@@ -19,7 +19,7 @@ import RecommendationCard from '../components/RecommendationCard'
 const tooltipStyle = {
   backgroundColor: 'var(--glass-bg)',
   border: '1px solid var(--glass-border)',
-  borderRadius: 12,
+  borderRadius: 2,
   color: 'var(--text-primary)',
   backdropFilter: 'blur(8px)',
   fontFamily: 'var(--font-mono)',
@@ -181,7 +181,7 @@ export default function PlayerDetail() {
   }))
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto" ref={pageRef}>
+    <div className="p-6 md:p-10" ref={pageRef}>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -223,7 +223,7 @@ export default function PlayerDetail() {
 
                 <div className="flex flex-wrap gap-4 mt-4">
                   {latest.fatigue_index != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-none" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Fatigue Index</span>
                       <span style={{
                         fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',
@@ -234,7 +234,7 @@ export default function PlayerDetail() {
                     </div>
                   )}
                   {latest.monotony != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-none" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Monotony</span>
                       <span style={{
                         fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',

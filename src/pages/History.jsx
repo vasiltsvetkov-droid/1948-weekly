@@ -64,7 +64,7 @@ export default function History() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+    <div className="p-6 md:p-10">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{player.name}</h1>
@@ -75,13 +75,13 @@ export default function History() {
         <div className="flex gap-2">
           <Link
             to={`/player/${id}`}
-            className="px-4 py-2 rounded-lg bg-slate-700 text-sm text-slate-300 hover:text-white"
+            className="px-4 py-2 rounded-none bg-slate-700 text-sm text-slate-300 hover:text-white"
           >
             Back to Report
           </Link>
           <button
             onClick={handleExportCSV}
-            className="px-4 py-2 rounded-lg text-white text-sm font-medium"
+            className="px-4 py-2 rounded-none text-white text-sm font-medium"
             style={{ backgroundColor: '#E8530A' }}
           >
             Export CSV
@@ -92,7 +92,7 @@ export default function History() {
       {history.length === 0 ? (
         <div className="text-slate-400 py-12 text-center">No history data available.</div>
       ) : (
-        <div className="bg-slate-800 rounded-xl overflow-x-auto">
+        <div className="bg-slate-800 rounded-none overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="text-slate-400 border-b border-slate-700 text-xs uppercase tracking-wide">
