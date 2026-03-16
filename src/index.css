@@ -433,6 +433,16 @@ body {
 [data-theme="light"] ::-webkit-scrollbar-track { background: var(--bg-primary); }
 [data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); }
 
+/* ========== SIDEBAR NAV BUTTONS ========== */
+.sidebar-nav-btn:hover {
+  background: rgba(148, 163, 184, 0.08) !important;
+  color: var(--text-primary) !important;
+  transform: translateX(2px);
+}
+[data-theme="light"] .sidebar-nav-btn:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+
 /* ========== ANALYTICS GRID ========== */
 .analytics-grid > .glass-card {
   margin-bottom: 0;

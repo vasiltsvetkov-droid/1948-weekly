@@ -65,8 +65,8 @@ export default function Layout() {
           borderRight: '1px solid var(--glass-border)',
         }}
       >
-        {/* Logo — bigger, centered */}
-        <div className="flex flex-col items-center pt-5 pb-3 px-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+        {/* Logo — centered, with top spacing */}
+        <div className="flex flex-col items-center pt-8 pb-5 px-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
           <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer" className="flex justify-center w-full">
             <img
               src={theme === 'dark' ? darkLogo : lightLogo}
@@ -76,28 +76,30 @@ export default function Layout() {
           </a>
         </div>
 
-        {/* Navigation categories */}
-        <nav className="flex-1 p-1.5 space-y-0.5 mt-1">
+        {/* Navigation categories — larger buttons with spacing and hover */}
+        <nav className="flex-1 px-2.5 pt-4" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {navItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
-              className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2 text-sm transition-all duration-200 ${
-                  isActive ? 'font-medium' : ''
-                }`
-              }
+              className="sidebar-nav-btn"
               style={({ isActive }) => ({
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                padding: '0.65rem 0.85rem',
                 fontFamily: 'var(--font-main)',
                 fontWeight: isActive ? 600 : 400,
-                fontSize: '0.85rem',
+                fontSize: '0.9rem',
+                borderRadius: '4px',
                 background: isActive ? 'rgba(227, 6, 19, 0.15)' : 'transparent',
                 borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                transition: 'all 200ms ease',
               })}
             >
-              <span>{item.icon}</span>
+              <span style={{ fontSize: '1.1rem' }}>{item.icon}</span>
               <span>{item.label}</span>
             </NavLink>
           ))}

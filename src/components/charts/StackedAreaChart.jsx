@@ -45,10 +45,10 @@ export default function StackedAreaChart({ title, data, dataKeys, colors }) {
               key={dk}
               type="monotone"
               dataKey={dk}
-              stackId="1"
               stroke={palette[i % palette.length]}
               fill={`url(#grad-${dk})`}
               strokeWidth={2}
+              fillOpacity={1}
             />
           ))}
         </AreaChart>
