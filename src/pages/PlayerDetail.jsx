@@ -15,6 +15,13 @@ import { MATCH_DEFAULTS, METRIC_LABELS } from '../constants/matchDefaults'
 import IndexCard from '../components/IndexCard'
 import LoadBar from '../components/LoadBar'
 import RecommendationCard from '../components/RecommendationCard'
+import DetailedAnalysis from '../components/DetailedAnalysis'
+import TrendLineChart from '../components/charts/TrendLineChart'
+import LoadRadarChart from '../components/charts/LoadRadarChart'
+import StackedAreaChart from '../components/charts/StackedAreaChart'
+import GaugeChart from '../components/charts/GaugeChart'
+import ZoneAreaChart from '../components/charts/ZoneAreaChart'
+import GroupedBarChart from '../components/charts/GroupedBarChart'
 
 const tooltipStyle = {
   backgroundColor: 'var(--glass-bg)',
@@ -179,6 +186,43 @@ export default function PlayerDetail() {
     'Total NRG': h.total_nrg != null ? Math.round(h.total_nrg) : null,
     'Monotony': h.monotony != null && isFinite(h.monotony) ? Number(Number(h.monotony).toFixed(2)) : null,
   }))
+
+  // --- New Knowledge-Driven Chart Data ---
+
+  // Mechanical Load Trend (12 weeks)
+  const mechTrendData = history.map(h => ({
+    week: h.week_start_date,
+    'ACWR Mechanical': h.acwr_mechanical != null ? Number(Number(h.acwr_mechanical).toFixed(2)) : null,
+  }))
+
+  // HSR + Sprint Weekly Trend (stacked area)
+  const hsrSprintData = history.map(h => ({
+    week: h.week_start_date,
+    'HSR Distance': h.hsr_distance != null ? Math.round(h.hsr_distance) : null,
+    'Sprint Distance': h.sprint_distance != null ? Math.round(h.sprint_distance) : null,
+  }))
+
+  // Recovery Status Timeline (zone area)
+  const rsTimelineData = history.map(h => ({
+    week: h.week_start_date,
+    'Recovery Status': h.rs != null ? Number((h.rs / 10).toFixed(1)) : null,
+  }))
+
+  // Speed Exposure Gauge
+  const speedExposureValue = (personalMaxSpeed && latest?.top_speed)
+    ? latest.top_speed / personalMaxSpeed
+    : null
+
+  // Position Benchmark Comparison (grouped bar — load % as current vs 100% benchmark)
+  const positionBenchmarkData = latest ? [
+    { metric: 'Total Dist', current: Math.round(latest.load_pct_total_distance || 0), benchmark: 100 },
+    { metric: 'HSR', current: Math.round(latest.load_pct_hsr || 0), benchmark: 100 },
+    { metric: 'Sprint', current: Math.round(latest.load_pct_sprint || 0), benchmark: 100 },
+    { metric: 'HMLD', current: Math.round(latest.load_pct_hmld || 0), benchmark: 100 },
+    { metric: 'NRG', current: Math.round(latest.load_pct_nrg || 0), benchmark: 100 },
+    { metric: 'Accel', current: Math.round(latest.load_pct_acc || 0), benchmark: 100 },
+    { metric: 'Decel', current: Math.round(latest.load_pct_dec || 0), benchmark: 100 },
+  ] : []
 
   return (
     <div ref={pageRef} style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
@@ -385,6 +429,58 @@ export default function PlayerDetail() {
             </ResponsiveContainer>
           </div>
 
+          {/* New Knowledge-Driven Charts */}
+          <div className="section-label">Advanced Analytics</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Load Achievement Radar */}
+            <LoadRadarChart title="Load Achievement Radar" latest={latest} />
+
+            {/* Speed Exposure Gauge */}
+            {speedExposureValue != null && (
+              <GaugeChart
+                title="Speed Exposure — Vmax %"
+                value={speedExposureValue}
+                maxLabel={`${latest.top_speed?.toFixed(1) || '?'} / ${personalMaxSpeed?.toFixed(1) || '?'} km/h`}
+              />
+            )}
+          </div>
+
+          {/* Mechanical Load Trend */}
+          <TrendLineChart
+            title="Mechanical Load Trend — 12 Weeks"
+            data={mechTrendData}
+            dataKeys={['ACWR Mechanical']}
+            referenceLines={[
+              { value: 1.2, color: '#F59E0B' },
+              { value: 1.4, color: '#EF4444' },
+            ]}
+            yDomain={[0, 2.5]}
+          />
+
+          {/* HSR + Sprint Stacked Area */}
+          <StackedAreaChart
+            title="HSR + Sprint Distance — 12 Week Trend"
+            data={hsrSprintData}
+            dataKeys={['HSR Distance', 'Sprint Distance']}
+            colors={['#3B82F6', '#E30613']}
+          />
+
+          {/* Recovery Status Timeline */}
+          <ZoneAreaChart
+            title="Recovery Status Timeline — 12 Weeks"
+            data={rsTimelineData}
+            dataKey="Recovery Status"
+            yDomain={[0, 10]}
+          />
+
+          {/* Position Benchmark Comparison */}
+          {positionBenchmarkData.length > 0 && (
+            <GroupedBarChart
+              title={`Position Benchmark — ${player.position} Match Reference Comparison`}
+              data={positionBenchmarkData}
+            />
+          )}
+
           {/* Recommendations */}
           {recommendations.length > 0 && (
             <>
@@ -392,7 +488,9 @@ export default function PlayerDetail() {
               <div className="rec-panel">
                 <div className="rec-panel-header">
                   <span className="rec-panel-title">Load Management Recommendations</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Based on KB v1.0</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Knowledge-Driven — {Object.keys(
+                    recommendations.reduce((acc, r) => { if (r.topic) acc[r.topic] = true; return acc }, {})
+                  ).length} topics</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
                   {recommendations.map((rec, i) => (
@@ -402,6 +500,9 @@ export default function PlayerDetail() {
               </div>
             </>
           )}
+
+          {/* Detailed Analysis Panel (knowledge-grounded) */}
+          <DetailedAnalysis recommendations={recommendations} />
         </>
       )}
     </div>
