@@ -102,12 +102,34 @@ function parseMD(raw) {
   }
 }
 
+/**
+ * Strip markdown formatting symbols from text:
+ * - **bold** → bold
+ * - *italic* → italic
+ * - `code` → code
+ * - [link](url) → link
+ * - # headings → headings
+ */
+function stripMarkdown(text) {
+  if (!text) return text
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '$1')   // **bold**
+    .replace(/\*(.+?)\*/g, '$1')        // *italic*
+    .replace(/`([^`]+)`/g, '$1')        // `code`
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // [text](url)
+    .replace(/^#{1,6}\s+/gm, '')        // # headings
+    .replace(/^\|.*\|$/gm, '')          // | table rows |
+    .replace(/^[-=]{3,}$/gm, '')        // --- or === separators
+    .replace(/\n{3,}/g, '\n\n')         // collapse multiple newlines
+    .trim()
+}
+
 function extractList(text) {
   if (!text) return []
   return text
     .split('\n')
     .filter(l => /^\s*[-\d]/.test(l))
-    .map(l => l.replace(/^\s*[-\d.]+\s*/, '').trim())
+    .map(l => stripMarkdown(l.replace(/^\s*[-\d.]+\s*/, '').trim()))
     .filter(Boolean)
 }
 
@@ -119,11 +141,11 @@ function extractTemplates(text) {
     if (!block.trim()) continue
     const lines = block.split('\n')
     const key = lines[0].trim().toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
-    templates[key] = lines.slice(1).join('\n').trim()
+    templates[key] = stripMarkdown(lines.slice(1).join('\n').trim())
   }
   // If no sub-headings, treat the whole text as a single "default" template
   if (Object.keys(templates).length === 0 && text.trim()) {
-    templates.default = text.trim()
+    templates.default = stripMarkdown(text.trim())
   }
   return templates
 }
