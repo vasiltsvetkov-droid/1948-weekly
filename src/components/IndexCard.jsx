@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import CircularGauge from './CircularGauge'
 
 function scoreColor(v) {
@@ -22,8 +21,8 @@ const interpretations = {
   injury_risk: (v) => v <= 3 ? 'Low risk' : v <= 6 ? 'Moderate risk' : 'High risk',
 }
 
-export default function IndexCard({ label, dbKey, value, inverted = false, explanation }) {
-  const [showExplanation, setShowExplanation] = useState(false)
+export default function IndexCard({ label, dbKey, value, inverted = false, explanation, isOpen = false, onToggle }) {
+  const showExplanation = isOpen
   const displayVal = value != null ? (value / 10).toFixed(1) : '—'
   const numVal = value != null ? value / 10 : 0
   const interpret = interpretations[dbKey]
@@ -49,7 +48,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
         {label}
         {explanation && (
           <button
-            onClick={() => setShowExplanation(!showExplanation)}
+            onClick={() => onToggle && onToggle(dbKey)}
             className="transition-all"
             style={{
               width: '16px',
@@ -107,7 +106,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
           <div className="flex justify-between items-start mb-1.5">
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--color-primary)' }}>{label} Explanation</span>
             <button
-              onClick={() => setShowExplanation(false)}
+              onClick={() => onToggle && onToggle(null)}
               className="transition-colors"
               style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
@@ -116,7 +115,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
               ✕
             </button>
           </div>
-          <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>{explanation}</p>
+          <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{explanation}</p>
         </div>
       )}
     </div>

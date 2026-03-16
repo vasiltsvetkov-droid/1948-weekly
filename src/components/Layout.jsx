@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import NeuralBackground from './NeuralBackground'
@@ -25,10 +25,19 @@ const MoonIcon = () => (
   </svg>
 )
 
+const LogoutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+    <polyline points="16 17 21 12 16 7"/>
+    <line x1="21" y1="12" x2="9" y2="12"/>
+  </svg>
+)
+
 export default function Layout() {
   const [theme, setTheme] = useState(() => {
     return document.documentElement.getAttribute('data-theme') || 'dark'
   })
+  const location = useLocation()
 
   const toggleTheme = () => {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -47,8 +56,8 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col md:flex-row" style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', transition: 'background-color 300ms, color 300ms' }}>
       <NeuralBackground />
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-56 min-h-screen relative z-10"
+      {/* Desktop Sidebar — compact, logo top-centered, categories below */}
+      <aside className="hidden md:flex md:flex-col md:w-44 min-h-screen relative z-10"
         style={{
           background: 'var(--glass-bg)',
           backdropFilter: 'blur(20px)',
@@ -56,32 +65,33 @@ export default function Layout() {
           borderRight: '1px solid var(--glass-border)',
         }}
       >
-        <div className="px-4 pt-6 pb-4" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-          <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer">
+        {/* Logo — bigger, centered */}
+        <div className="flex flex-col items-center pt-5 pb-3 px-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
+          <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer" className="flex justify-center w-full">
             <img
               src={theme === 'dark' ? darkLogo : lightLogo}
               alt="Barin Sports"
-              className="h-8 w-auto mb-2 hover:opacity-80 transition-opacity"
+              className="w-28 h-auto hover:opacity-80 transition-opacity"
             />
           </a>
-          <p style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '2px', textTransform: 'uppercase' }}>
-            Performance Analytics
-          </p>
         </div>
-        <nav className="flex-1 p-2 space-y-1">
+
+        {/* Navigation categories */}
+        <nav className="flex-1 p-1.5 space-y-0.5 mt-1">
           {navItems.map(item => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.to === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-2 px-3 py-2.5 text-sm transition-all duration-200 ${
+                `flex items-center gap-2 px-3 py-2 text-sm transition-all duration-200 ${
                   isActive ? 'font-medium' : ''
                 }`
               }
               style={({ isActive }) => ({
                 fontFamily: 'var(--font-main)',
                 fontWeight: isActive ? 600 : 400,
+                fontSize: '0.85rem',
                 background: isActive ? 'rgba(227, 6, 19, 0.15)' : 'transparent',
                 borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -92,31 +102,44 @@ export default function Layout() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-2 flex items-center gap-2" style={{ borderTop: '1px solid var(--glass-border)' }}>
+      </aside>
+
+      {/* Main Content with top header bar */}
+      <div className="flex-1 flex flex-col relative z-1 overflow-x-hidden">
+        {/* Top Header Bar — theme toggle + logout on the right */}
+        <header className="flex items-center justify-end gap-2 px-4 py-2 relative z-20"
+          style={{
+            background: 'var(--glass-bg)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderBottom: '1px solid var(--glass-border)',
+            minHeight: '44px',
+          }}
+        >
           <button
             onClick={toggleTheme}
             className="btn-icon"
             aria-label="Toggle theme"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{ padding: '0.4rem' }}
           >
             {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
           </button>
           <button
             onClick={handleLogout}
-            className="flex-1 px-3 py-2 text-sm text-left transition-all duration-200"
-            style={{ fontFamily: 'var(--font-main)', fontSize: '0.85rem', color: 'var(--text-secondary)' }}
-            onMouseEnter={e => e.currentTarget.style.color = 'var(--color-primary)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+            className="btn-icon"
+            aria-label="Sign out"
+            title="Sign out"
+            style={{ padding: '0.4rem' }}
           >
-            Sign Out
+            <LogoutIcon />
           </button>
-        </div>
-      </aside>
+        </header>
 
-      {/* Main Content */}
-      <main className="flex-1 pb-16 md:pb-0 relative z-1 overflow-x-hidden">
-        <Outlet />
-      </main>
+        <main className="flex-1 pb-16 md:pb-0">
+          <Outlet />
+        </main>
+      </div>
 
       {/* Mobile Bottom Nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 flex justify-around py-2 z-50"

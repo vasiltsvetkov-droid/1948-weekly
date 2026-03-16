@@ -62,13 +62,13 @@ function ACWRZoneBar({ value, label }) {
   )
 }
 
-function ExplanationBox({ title, text }) {
-  const [open, setOpen] = useState(false)
+function ExplanationBox({ title, text, id, openId, onToggle }) {
+  const open = openId === id
   if (!text) return null
   return (
     <div className="mt-3">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => onToggle(open ? null : id)}
         className="transition-colors"
         style={{
           fontFamily: 'var(--font-mono)',
@@ -98,7 +98,18 @@ export default function PlayerDetail() {
   const { history, loading: historyLoading } = useHistory(id, 12)
   const personalMaxSpeed = usePersonalMaxSpeed(id)
   const [matchRefs, setMatchRefs] = useState(null)
+  const [openIndexExplanation, setOpenIndexExplanation] = useState(null)
+  const [openExplanationBox, setOpenExplanationBox] = useState(null)
   const pageRef = useRef(null)
+
+  const handleIndexToggle = (key) => {
+    setOpenIndexExplanation(prev => prev === key ? null : key)
+    setOpenExplanationBox(null)
+  }
+  const handleExplanationToggle = (id) => {
+    setOpenExplanationBox(prev => prev === id ? null : id)
+    setOpenIndexExplanation(null)
+  }
 
   const latest = history.length ? history[history.length - 1] : null
   const explanations = latest?.explanations || null
@@ -249,11 +260,11 @@ export default function PlayerDetail() {
           {/* Section A: Index Hero Cards */}
           <div className="section-label">Performance Indexes</div>
           <div className="flex flex-wrap gap-4 mb-8 justify-center">
-            <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} />
-            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
-            <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} />
-            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} />
-            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} inverted explanation={explanations?.injury_risk} />
+            <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} isOpen={openIndexExplanation === 'api'} onToggle={handleIndexToggle} />
+            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} isOpen={openIndexExplanation === 'rtt'} onToggle={handleIndexToggle} />
+            <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} isOpen={openIndexExplanation === 'rs'} onToggle={handleIndexToggle} />
+            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} isOpen={openIndexExplanation === 'tmi'} onToggle={handleIndexToggle} />
+            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} inverted explanation={explanations?.injury_risk} isOpen={openIndexExplanation === 'injury_risk'} onToggle={handleIndexToggle} />
           </div>
 
           {/* ACWR NRG Visualization */}
@@ -309,7 +320,7 @@ export default function PlayerDetail() {
                 </ResponsiveContainer>
               </div>
             </div>
-            <ExplanationBox title="ACWR & Recovery Explanation" text={explanations?.rs} />
+            <ExplanationBox title="ACWR & Recovery Explanation" text={explanations?.rs} id="acwr" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Section B: Load Achievement Panel */}
@@ -350,7 +361,7 @@ export default function PlayerDetail() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-                <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} />
+                <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} id="monotony" openId={openExplanationBox} onToggle={handleExplanationToggle} />
               </div>
             </>
           )}
@@ -384,7 +395,7 @@ export default function PlayerDetail() {
                 <Line type="monotone" dataKey="TMI" stroke="#a855f7" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
               </AreaChart>
             </ResponsiveContainer>
-            <ExplanationBox title="Performance Index Explanation" text={explanations?.performance} />
+            <ExplanationBox title="Performance Index Explanation" text={explanations?.performance} id="performance" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Injury Risk & ACWR Trend */}
@@ -406,7 +417,7 @@ export default function PlayerDetail() {
                 <Line yAxisId="right" type="monotone" dataKey="ACWR TD" stroke="#F59E0B" strokeWidth={2} dot={{ r: 2, fill: '#F59E0B' }} />
               </LineChart>
             </ResponsiveContainer>
-            <ExplanationBox title="Injury Risk Explanation" text={explanations?.injury_risk} />
+            <ExplanationBox title="Injury Risk Explanation" text={explanations?.injury_risk} id="injury_risk" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Weekly NRG & Monotony Trend */}
@@ -431,7 +442,7 @@ export default function PlayerDetail() {
 
           {/* New Knowledge-Driven Charts */}
           <div className="section-label">Advanced Analytics</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="analytics-grid grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* Load Achievement Radar */}
             <LoadRadarChart title="Load Achievement Radar" latest={latest} />
 
@@ -443,43 +454,43 @@ export default function PlayerDetail() {
                 maxLabel={`${latest.top_speed?.toFixed(1) || '?'} / ${personalMaxSpeed?.toFixed(1) || '?'} km/h`}
               />
             )}
-          </div>
 
-          {/* Mechanical Load Trend */}
-          <TrendLineChart
-            title="Mechanical Load Trend — 12 Weeks"
-            data={mechTrendData}
-            dataKeys={['ACWR Mechanical']}
-            referenceLines={[
-              { value: 1.2, color: '#F59E0B' },
-              { value: 1.4, color: '#EF4444' },
-            ]}
-            yDomain={[0, 2.5]}
-          />
-
-          {/* HSR + Sprint Stacked Area */}
-          <StackedAreaChart
-            title="HSR + Sprint Distance — 12 Week Trend"
-            data={hsrSprintData}
-            dataKeys={['HSR Distance', 'Sprint Distance']}
-            colors={['#3B82F6', '#E30613']}
-          />
-
-          {/* Recovery Status Timeline */}
-          <ZoneAreaChart
-            title="Recovery Status Timeline — 12 Weeks"
-            data={rsTimelineData}
-            dataKey="Recovery Status"
-            yDomain={[0, 10]}
-          />
-
-          {/* Position Benchmark Comparison */}
-          {positionBenchmarkData.length > 0 && (
-            <GroupedBarChart
-              title={`Position Benchmark — ${player.position} Match Reference Comparison`}
-              data={positionBenchmarkData}
+            {/* Mechanical Load Trend */}
+            <TrendLineChart
+              title="Mechanical Load Trend — 12 Weeks"
+              data={mechTrendData}
+              dataKeys={['ACWR Mechanical']}
+              referenceLines={[
+                { value: 1.2, color: '#F59E0B' },
+                { value: 1.4, color: '#EF4444' },
+              ]}
+              yDomain={[0, 2.5]}
             />
-          )}
+
+            {/* HSR + Sprint Stacked Area */}
+            <StackedAreaChart
+              title="HSR + Sprint Distance — 12 Week Trend"
+              data={hsrSprintData}
+              dataKeys={['HSR Distance', 'Sprint Distance']}
+              colors={['#3B82F6', '#E30613']}
+            />
+
+            {/* Recovery Status Timeline */}
+            <ZoneAreaChart
+              title="Recovery Status Timeline — 12 Weeks"
+              data={rsTimelineData}
+              dataKey="Recovery Status"
+              yDomain={[0, 10]}
+            />
+
+            {/* Position Benchmark Comparison */}
+            {positionBenchmarkData.length > 0 && (
+              <GroupedBarChart
+                title={`Position Benchmark — ${player.position} Match Reference Comparison`}
+                data={positionBenchmarkData}
+              />
+            )}
+          </div>
 
           {/* Recommendations */}
           {recommendations.length > 0 && (

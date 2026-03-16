@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, createContext, useContext } from 'react'
+
+const AccordionContext = createContext({ openId: null, setOpenId: () => {} })
 
 const topicColors = {
   'load-management': '#3B82F6',
@@ -26,14 +28,16 @@ const topicLabels = {
   'position-demands': 'Position Demands',
 }
 
-function PostulatesList({ postulates }) {
-  const [open, setOpen] = useState(false)
+function PostulatesList({ postulates, id }) {
+  const { openId, setOpenId } = useContext(AccordionContext)
+  const postId = `post-${id}`
+  const open = openId === postId
   if (!postulates || !postulates.length) return null
 
   return (
     <div className="mt-2">
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpenId(open ? null : postId)}
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '0.55rem',
@@ -55,8 +59,8 @@ function PostulatesList({ postulates }) {
           padding: 0,
           listStyle: 'disc',
           fontFamily: 'var(--font-data)',
-          fontSize: '0.7rem',
-          lineHeight: '1.5',
+          fontSize: '0.85rem',
+          lineHeight: '1.65',
           color: 'var(--text-secondary)',
         }}>
           {postulates.slice(0, 8).map((p, i) => (
@@ -68,8 +72,9 @@ function PostulatesList({ postulates }) {
   )
 }
 
-function AnalysisItem({ rec }) {
-  const [expanded, setExpanded] = useState(false)
+function AnalysisItem({ rec, id }) {
+  const { openId, setOpenId } = useContext(AccordionContext)
+  const expanded = openId === `analysis-${id}`
   const color = topicColors[rec.topic] || 'var(--text-secondary)'
   const label = topicLabels[rec.topic] || rec.topic
 
@@ -106,7 +111,7 @@ function AnalysisItem({ rec }) {
       {rec.detailedAnalysis && (
         <>
           <button
-            onClick={() => setExpanded(!expanded)}
+            onClick={() => setOpenId(expanded ? null : `analysis-${id}`)}
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: '0.55rem',
@@ -123,8 +128,8 @@ function AnalysisItem({ rec }) {
           {expanded && (
             <div style={{
               fontFamily: 'var(--font-data)',
-              fontSize: '0.75rem',
-              lineHeight: '1.6',
+              fontSize: '0.9rem',
+              lineHeight: '1.7',
               color: 'var(--text-secondary)',
               marginTop: '0.5rem',
               padding: '0.75rem',
@@ -137,12 +142,14 @@ function AnalysisItem({ rec }) {
         </>
       )}
 
-      <PostulatesList postulates={rec.postulates} />
+      <PostulatesList postulates={rec.postulates} id={id} />
     </div>
   )
 }
 
 export default function DetailedAnalysis({ recommendations }) {
+  const [openId, setOpenId] = useState(null)
+
   if (!recommendations || !recommendations.length) return null
 
   // Group by topic
@@ -153,8 +160,10 @@ export default function DetailedAnalysis({ recommendations }) {
     grouped[topic].push(rec)
   }
 
+  let globalIdx = 0
+
   return (
-    <>
+    <AccordionContext.Provider value={{ openId, setOpenId }}>
       <div className="section-label">Detailed Analysis</div>
       <div className="glass-card p-4 mb-6">
         <div style={{
@@ -169,12 +178,13 @@ export default function DetailedAnalysis({ recommendations }) {
         </div>
         {Object.entries(grouped).map(([topic, recs]) => (
           <div key={topic} style={{ marginBottom: '0.75rem' }}>
-            {recs.map((rec, i) => (
-              <AnalysisItem key={`${topic}-${i}`} rec={rec} />
-            ))}
+            {recs.map((rec, i) => {
+              const id = globalIdx++
+              return <AnalysisItem key={`${topic}-${i}`} rec={rec} id={id} />
+            })}
           </div>
         ))}
       </div>
-    </>
+    </AccordionContext.Provider>
   )
 }
