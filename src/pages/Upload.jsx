@@ -178,14 +178,23 @@ export default function Upload() {
           })
           remaining--
           if (remaining === 0) {
+            // Group sessions by player AND by week (Monday of each session's date)
+            // This ensures multi-week uploads create separate weekly entries
             const grouped = {}
             for (const [name, sessions] of Object.entries(allSessions)) {
-              const dates = sessions
-                .map(s => s[CSV_COLUMNS.date])
-                .filter(Boolean)
-                .sort()
-              const weekStart = dates.length ? getMonday(dates[0]) : null
-              grouped[name] = { sessions, weekStart }
+              const byWeek = {}
+              for (const s of sessions) {
+                const dateStr = s[CSV_COLUMNS.date]
+                const weekStart = dateStr ? getMonday(dateStr) : null
+                if (!weekStart) continue
+                if (!byWeek[weekStart]) byWeek[weekStart] = []
+                byWeek[weekStart].push(s)
+              }
+              // Sort weeks chronologically and store as array
+              const weeks = Object.entries(byWeek)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([weekStart, weekSessions]) => ({ weekStart, sessions: weekSessions }))
+              if (weeks.length) grouped[name] = weeks
             }
             setParsedData(grouped)
           }
@@ -203,7 +212,7 @@ export default function Upload() {
     setError(null)
 
     try {
-      const playerNames = Object.keys(parsedData)
+      const playerNames = Object.keys(parsedData) // parsedData keys are still player names
 
       const { data: existingPlayers } = await supabase
         .from('players')
@@ -271,121 +280,137 @@ export default function Upload() {
     try {
       const processedIds = []
 
-      for (const [name, { sessions, weekStart }] of Object.entries(parsedData)) {
-        const player = playerMap[name]
-        if (!player || !weekStart) continue
+      // Collect all unique week starts across all players, sorted chronologically
+      const allWeekStarts = new Set()
+      for (const weeks of Object.values(parsedData)) {
+        for (const { weekStart } of weeks) allWeekStarts.add(weekStart)
+      }
+      const sortedWeeks = [...allWeekStarts].sort()
 
-        const { data: refRows } = await supabase
-          .from('match_references')
-          .select('*')
-          .eq('player_id', player.id)
+      // Process week by week (chronologically) so each week's aggregate is in the DB
+      // before the next week computes ACWR against it
+      for (const currentWeek of sortedWeeks) {
+        for (const [name, weeks] of Object.entries(parsedData)) {
+          const weekEntry = weeks.find(w => w.weekStart === currentWeek)
+          if (!weekEntry) continue
 
-        const matchRefs = {}
-        for (const r of (refRows || [])) {
-          matchRefs[r.metric_key] = r.value_per90
+          const { sessions, weekStart } = weekEntry
+          const player = playerMap[name]
+          if (!player) continue
+
+          const { data: refRows } = await supabase
+            .from('match_references')
+            .select('*')
+            .eq('player_id', player.id)
+
+          const matchRefs = {}
+          for (const r of (refRows || [])) {
+            matchRefs[r.metric_key] = r.value_per90
+          }
+
+          // Fetch prior weeks from DB (includes previously inserted weeks from this upload)
+          const { data: historyRows } = await supabase
+            .from('weekly_aggregates')
+            .select('*')
+            .eq('player_id', player.id)
+            .lt('week_start_date', weekStart)
+            .order('week_start_date', { ascending: false })
+            .limit(4)
+
+          const history = (historyRows || []).reverse()
+
+          const { data: speedRows } = await supabase
+            .from('weekly_aggregates')
+            .select('top_speed')
+            .eq('player_id', player.id)
+            .order('top_speed', { ascending: false })
+            .limit(1)
+
+          const personalMaxSpeed = speedRows?.[0]?.top_speed || null
+
+          const metrics = computeMetrics({
+            sessions,
+            matchRefs,
+            history,
+            position: player.position,
+            personalMaxSpeed,
+          })
+
+          const sessionRows = sessions.map(s => ({
+            player_id: player.id,
+            week_start_date: weekStart,
+            session_date: (() => {
+              const pd = parseDate(s[CSV_COLUMNS.date])
+              if (!pd) return null
+              const yyyy = pd.getFullYear()
+              const mm = String(pd.getMonth() + 1).padStart(2, '0')
+              const dd = String(pd.getDate()).padStart(2, '0')
+              return `${yyyy}-${mm}-${dd}`
+            })(),
+            data: s,
+          }))
+
+          const { error: sessErr } = await supabase.from('weekly_sessions').insert(sessionRows)
+          if (sessErr) throw new Error(`weekly_sessions insert: ${sessErr.message}`)
+
+          const num = v => (typeof v === 'number' && isFinite(v)) ? v : null
+
+          const aggregateRow = {
+            player_id: player.id,
+            week_start_date: weekStart,
+            total_distance: num(metrics.total_distance),
+            hsr_distance: num(metrics.hsr_distance),
+            sprint_distance: num(metrics.sprint_distance),
+            hmld: num(metrics.hmld),
+            total_nrg: num(metrics.total_nrg),
+            nrg_above_th: num(metrics.nrg_above_th),
+            total_accelerations: num(metrics.total_accelerations),
+            total_decelerations: num(metrics.total_decelerations),
+            mechanical_load: num(metrics.mechanical_load),
+            equivalent_distance: num(metrics.equivalent_distance),
+            high_efforts: num(metrics.high_efforts),
+            avg_metabolic_power: num(metrics.avg_metabolic_power),
+            max_metabolic_power: num(metrics.max_metabolic_power),
+            top_speed: num(metrics.top_speed),
+            avg_speed: num(metrics.avg_speed),
+            intensity_indicator: num(metrics.intensity_indicator),
+            avg_hr: num(metrics.avg_hr),
+            max_hr: num(metrics.max_hr),
+            heart_exertion: num(metrics.heart_exertion),
+            heart_exertion_above_th: num(metrics.heart_exertion_above_th),
+            acwr_total_distance: num(metrics.acwr_total_distance),
+            acwr_sprint: num(metrics.acwr_sprint),
+            acwr_mechanical: num(metrics.acwr_mechanical),
+            acwr_nrg: num(metrics.acwr_nrg),
+            api: num(metrics.api),
+            rtt: num(metrics.rtt),
+            rs: num(metrics.rs),
+            tmi: num(metrics.tmi),
+            injury_risk: num(metrics.injury_risk),
+            fatigue_index: num(metrics.fatigue_index),
+            monotony: num(metrics.monotony),
+            load_pct_total_distance: num(metrics.load_pct_total_distance),
+            load_pct_hsr: num(metrics.load_pct_hsr),
+            load_pct_sprint: num(metrics.load_pct_sprint),
+            load_pct_hmld: num(metrics.load_pct_hmld),
+            load_pct_nrg: num(metrics.load_pct_nrg),
+            load_pct_acc: num(metrics.load_pct_acc),
+            load_pct_dec: num(metrics.load_pct_dec),
+            daily_loads: metrics.daily_loads,
+            explanations: metrics.explanations || null,
+          }
+
+          const { error: aggErr } = await supabase
+            .from('weekly_aggregates')
+            .upsert(aggregateRow, { onConflict: 'player_id,week_start_date' })
+          if (aggErr) throw new Error(`weekly_aggregates upsert: ${aggErr.message}`)
+
+          if (!processedIds.includes(player.id)) processedIds.push(player.id)
         }
-
-        const { data: historyRows } = await supabase
-          .from('weekly_aggregates')
-          .select('*')
-          .eq('player_id', player.id)
-          .lt('week_start_date', weekStart)
-          .order('week_start_date', { ascending: false })
-          .limit(4)
-
-        const history = (historyRows || []).reverse()
-
-        const { data: speedRows } = await supabase
-          .from('weekly_aggregates')
-          .select('top_speed')
-          .eq('player_id', player.id)
-          .order('top_speed', { ascending: false })
-          .limit(1)
-
-        const personalMaxSpeed = speedRows?.[0]?.top_speed || null
-
-        const metrics = computeMetrics({
-          sessions,
-          matchRefs,
-          history,
-          position: player.position,
-          personalMaxSpeed,
-        })
-
-        const sessionRows = sessions.map(s => ({
-          player_id: player.id,
-          week_start_date: weekStart,
-          session_date: (() => {
-            const pd = parseDate(s[CSV_COLUMNS.date])
-            if (!pd) return null
-            const yyyy = pd.getFullYear()
-            const mm = String(pd.getMonth() + 1).padStart(2, '0')
-            const dd = String(pd.getDate()).padStart(2, '0')
-            return `${yyyy}-${mm}-${dd}`
-          })(),
-          data: s,
-        }))
-
-        const { error: sessErr } = await supabase.from('weekly_sessions').insert(sessionRows)
-        if (sessErr) throw new Error(`weekly_sessions insert: ${sessErr.message}`)
-
-        const num = v => (typeof v === 'number' && isFinite(v)) ? v : null
-
-        const aggregateRow = {
-          player_id: player.id,
-          week_start_date: weekStart,
-          total_distance: num(metrics.total_distance),
-          hsr_distance: num(metrics.hsr_distance),
-          sprint_distance: num(metrics.sprint_distance),
-          hmld: num(metrics.hmld),
-          total_nrg: num(metrics.total_nrg),
-          nrg_above_th: num(metrics.nrg_above_th),
-          total_accelerations: num(metrics.total_accelerations),
-          total_decelerations: num(metrics.total_decelerations),
-          mechanical_load: num(metrics.mechanical_load),
-          equivalent_distance: num(metrics.equivalent_distance),
-          high_efforts: num(metrics.high_efforts),
-          avg_metabolic_power: num(metrics.avg_metabolic_power),
-          max_metabolic_power: num(metrics.max_metabolic_power),
-          top_speed: num(metrics.top_speed),
-          avg_speed: num(metrics.avg_speed),
-          intensity_indicator: num(metrics.intensity_indicator),
-          avg_hr: num(metrics.avg_hr),
-          max_hr: num(metrics.max_hr),
-          heart_exertion: num(metrics.heart_exertion),
-          heart_exertion_above_th: num(metrics.heart_exertion_above_th),
-          acwr_total_distance: num(metrics.acwr_total_distance),
-          acwr_sprint: num(metrics.acwr_sprint),
-          acwr_mechanical: num(metrics.acwr_mechanical),
-          acwr_nrg: num(metrics.acwr_nrg),
-          api: num(metrics.api),
-          rtt: num(metrics.rtt),
-          rs: num(metrics.rs),
-          tmi: num(metrics.tmi),
-          injury_risk: num(metrics.injury_risk),
-          fatigue_index: num(metrics.fatigue_index),
-          monotony: num(metrics.monotony),
-          load_pct_total_distance: num(metrics.load_pct_total_distance),
-          load_pct_hsr: num(metrics.load_pct_hsr),
-          load_pct_sprint: num(metrics.load_pct_sprint),
-          load_pct_hmld: num(metrics.load_pct_hmld),
-          load_pct_nrg: num(metrics.load_pct_nrg),
-          load_pct_acc: num(metrics.load_pct_acc),
-          load_pct_dec: num(metrics.load_pct_dec),
-          daily_loads: metrics.daily_loads,
-          explanations: metrics.explanations || null,
-        }
-
-        const { error: aggErr } = await supabase
-          .from('weekly_aggregates')
-          .upsert(aggregateRow, { onConflict: 'player_id,week_start_date' })
-        if (aggErr) throw new Error(`weekly_aggregates upsert: ${aggErr.message}`)
-
-        processedIds.push(player.id)
       }
 
-      const weekStarts = [...new Set(Object.values(parsedData).map(d => d.weekStart).filter(Boolean))]
-      for (const ws of weekStarts) {
+      // Update team snapshots for each week
+      for (const ws of sortedWeeks) {
         const { data: weekAggs } = await supabase
           .from('weekly_aggregates')
           .select('api, player_id')
@@ -486,43 +511,45 @@ export default function Upload() {
       {/* Session Preview */}
       {parsedData && (
         <div className="mt-6 space-y-4">
-          {Object.entries(parsedData).map(([name, { sessions, weekStart }]) => (
-            <div key={name} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '0.95rem' }}>{name}</h3>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>Week: {weekStart}</span>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      {['Date', 'Total Dist', 'HSR', 'Sprint', 'HMLD', 'NRG'].map((h, i) => (
-                        <th key={h} className={`py-2 px-3 ${i === 0 ? 'text-left' : 'text-right'}`} style={{
-                          fontSize: '0.55rem',
-                          letterSpacing: '1.5px',
-                          textTransform: 'uppercase',
-                          color: 'var(--text-muted)',
-                          fontWeight: 400,
-                        }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sessions.map((s, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                        <td className="py-1.5 px-3">{s[CSV_COLUMNS.date] || '—'}</td>
-                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_distance] || 0).toFixed(0)}</td>
-                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone4plus5] || 0).toFixed(0)}</td>
-                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone5_distance] || 0).toFixed(0)}</td>
-                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.hmld] || 0).toFixed(0)}</td>
-                        <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_nrg] || 0).toFixed(0)}</td>
+          {Object.entries(parsedData).map(([name, weeks]) =>
+            weeks.map(({ sessions, weekStart }, wi) => (
+              <div key={`${name}-${weekStart}`} className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
+                <div className="flex justify-between items-center p-4" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <h3 style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '0.95rem' }}>{name}</h3>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-muted)', letterSpacing: '0.5px' }}>Week: {weekStart}</span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        {['Date', 'Total Dist', 'HSR', 'Sprint', 'HMLD', 'NRG'].map((h, i) => (
+                          <th key={h} className={`py-2 px-3 ${i === 0 ? 'text-left' : 'text-right'}`} style={{
+                            fontSize: '0.55rem',
+                            letterSpacing: '1.5px',
+                            textTransform: 'uppercase',
+                            color: 'var(--text-muted)',
+                            fontWeight: 400,
+                          }}>{h}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {sessions.map((s, i) => (
+                        <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                          <td className="py-1.5 px-3">{s[CSV_COLUMNS.date] || '—'}</td>
+                          <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_distance] || 0).toFixed(0)}</td>
+                          <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone4plus5] || 0).toFixed(0)}</td>
+                          <td className="text-right px-3">{Number(s[CSV_COLUMNS.zone5_distance] || 0).toFixed(0)}</td>
+                          <td className="text-right px-3">{Number(s[CSV_COLUMNS.hmld] || 0).toFixed(0)}</td>
+                          <td className="text-right px-3">{Number(s[CSV_COLUMNS.total_nrg] || 0).toFixed(0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
 
           <button
             onClick={handleConfirm}
