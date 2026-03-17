@@ -51,17 +51,19 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
             onClick={() => onToggle && onToggle(dbKey)}
             className="transition-all"
             style={{
-              width: '16px',
-              height: '16px',
+              width: '20px',
+              height: '20px',
               borderRadius: '50%',
-              fontSize: '10px',
+              fontSize: '11px',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: showExplanation ? 'var(--color-primary)' : 'rgba(148,163,184,0.1)',
-              color: showExplanation ? 'white' : 'var(--text-secondary)',
-              border: '1px solid rgba(148,163,184,0.15)',
+              background: showExplanation ? 'var(--color-primary)' : 'rgba(227,6,19,0.12)',
+              color: showExplanation ? 'white' : 'var(--color-primary)',
+              border: showExplanation ? '1px solid var(--color-primary)' : '1px solid rgba(227,6,19,0.35)',
               cursor: 'pointer',
+              boxShadow: showExplanation ? '0 0 8px rgba(227,6,19,0.4)' : 'none',
             }}
             title="View explanation"
           >

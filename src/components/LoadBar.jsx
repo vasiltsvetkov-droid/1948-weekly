@@ -23,7 +23,14 @@ export default function LoadBar({ metricKey, label, value, refValue, pct }) {
   return (
     <div className="mb-3">
       <div className="flex justify-between text-xs mb-1">
-        <span style={{ fontFamily: 'var(--font-data)', color: 'var(--text-primary)', fontWeight: 500 }}>{label}</span>
+        <span style={{ fontFamily: 'var(--font-data)', color: 'var(--text-primary)', fontWeight: 500 }}>
+          {label}
+          {optimal && (
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: '0.5rem', fontWeight: 400 }}>
+              target {optimal.min}–{optimal.max}%
+            </span>
+          )}
+        </span>
         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           {value != null ? value.toFixed(0) : '—'} / {refValue != null ? refValue.toFixed(0) : '—'} <span style={{ color: barColor, fontWeight: 500 }}>({displayPct}%)</span>
         </span>

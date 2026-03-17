@@ -69,18 +69,21 @@ function ExplanationBox({ title, text, id, openId, onToggle }) {
     <div className="mt-3">
       <button
         onClick={() => onToggle(open ? null : id)}
-        className="transition-colors"
+        className="explanation-toggle-btn"
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '0.65rem',
           letterSpacing: '1px',
           color: 'var(--color-primary)',
-          background: 'none',
-          border: 'none',
+          background: open ? 'rgba(227,6,19,0.08)' : 'rgba(227,6,19,0.04)',
+          border: '1px solid rgba(227,6,19,0.2)',
+          borderRadius: '2px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.25rem',
+          gap: '0.35rem',
+          padding: '0.35rem 0.7rem',
+          transition: 'all 150ms ease',
         }}
       >
         {open ? '▾' : '▸'} {title || 'Why this score?'}
@@ -149,7 +152,8 @@ export default function PlayerDetail() {
 
   const handleExportPDF = async () => {
     if (!pageRef.current) return
-    const canvas = await html2canvas(pageRef.current, { backgroundColor: '#0A0A0A', scale: 2 })
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#0A0A0A'
+    const canvas = await html2canvas(pageRef.current, { backgroundColor: bgColor, scale: 2 })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
@@ -326,8 +330,28 @@ export default function PlayerDetail() {
           {/* Section B: Load Achievement Panel */}
           <div className="section-label">Load Achievement</div>
           <div className="glass-card p-5 mb-6">
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Weekly Load vs Match Reference
+            <div className="flex items-center justify-between mb-3">
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                Weekly Load vs Match Reference
+              </div>
+              <div className="flex items-center gap-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.5px' }}>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#10B981' }}/><span style={{ color: 'var(--text-muted)' }}>Optimal</span></span>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }}/><span style={{ color: 'var(--text-muted)' }}>Near</span></span>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }}/><span style={{ color: 'var(--text-muted)' }}>Outside</span></span>
+              </div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-data)',
+              fontSize: '0.75rem',
+              lineHeight: 1.55,
+              color: 'var(--text-muted)',
+              marginBottom: '1rem',
+              padding: '0.5rem 0.75rem',
+              background: 'rgba(148,163,184,0.04)',
+              border: '1px solid rgba(148,163,184,0.08)',
+              borderRadius: '2px',
+            }}>
+              Percentage = weekly training total / single-match reference value. A typical training week should accumulate ~270–350% of match demands across 5–7 sessions. Values below 200% suggest underloading; above 400% indicates significant overload risk.
             </div>
             <LoadBar metricKey="total_distance" label="Total Distance" value={latest.total_distance} refValue={resolvedRefs.total_distance} pct={latest.load_pct_total_distance} />
             <LoadBar metricKey="hsr" label="HSR (Zone 4+5)" value={latest.hsr_distance} refValue={resolvedRefs.hsr} pct={latest.load_pct_hsr} />

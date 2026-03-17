@@ -43,12 +43,15 @@ function PostulatesList({ postulates, id }) {
           fontSize: '0.55rem',
           letterSpacing: '1px',
           color: 'var(--color-primary)',
-          background: 'none',
-          border: 'none',
+          background: open ? 'rgba(227,6,19,0.08)' : 'rgba(227,6,19,0.04)',
+          border: '1px solid rgba(227,6,19,0.2)',
+          borderRadius: '2px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.25rem',
+          gap: '0.3rem',
+          padding: '0.25rem 0.6rem',
+          transition: 'all 150ms ease',
         }}
       >
         {open ? '▾' : '▸'} KEY POSTULATES ({postulates.length})
@@ -117,10 +120,13 @@ function AnalysisItem({ rec, id }) {
               fontSize: '0.55rem',
               letterSpacing: '1px',
               color: 'var(--color-primary)',
-              background: 'none',
-              border: 'none',
+              background: expanded ? 'rgba(227,6,19,0.08)' : 'rgba(227,6,19,0.04)',
+              border: '1px solid rgba(227,6,19,0.2)',
+              borderRadius: '2px',
               cursor: 'pointer',
-              marginTop: '0.25rem',
+              marginTop: '0.35rem',
+              padding: '0.25rem 0.6rem',
+              transition: 'all 150ms ease',
             }}
           >
             {expanded ? '▾ HIDE ANALYSIS' : '▸ DETAILED ANALYSIS'}

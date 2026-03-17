@@ -97,14 +97,15 @@ export default function Dashboard() {
             <table className="w-full" style={{ fontFamily: 'var(--font-data)', fontSize: '1rem', borderCollapse: 'collapse', minWidth: '700px' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  {['Player', 'Pos', 'PI', 'RTT', 'RS', 'TMI', 'Injury Risk'].map((h, i) => (
-                    <th key={h} className={`px-5 py-4 ${i < 2 ? 'text-left' : 'text-right'}`} style={{
+                  {['Player', 'Pos', 'PI', 'RTT', 'RS', 'TMI', 'Injury Risk', ''].map((h, i) => (
+                    <th key={h || 'arrow'} className={`px-5 py-4 ${i < 2 ? 'text-left' : 'text-right'}`} style={{
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.7rem',
                       letterSpacing: '2px',
                       textTransform: 'uppercase',
                       color: 'var(--text-muted)',
                       fontWeight: 400,
+                      ...(i === 7 ? { width: '2rem' } : {}),
                     }}>{h}</th>
                   ))}
                 </tr>
@@ -138,6 +139,7 @@ export default function Dashboard() {
                     }}>
                       {fmt(row.injury_risk)}
                     </td>
+                    <td className="text-right px-3 py-4" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>→</td>
                   </tr>
                 ))}
               </tbody>
