@@ -1,4 +1,5 @@
 import { MATCH_DEFAULTS, OPTIMAL_LOAD_PCT } from '../constants/matchDefaults'
+import { CSV_COLUMNS } from '../constants/csvColumns'
 
 /**
  * computeMetrics
@@ -20,7 +21,7 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
   const totals = aggregateSessions(sessions)
 
   // STEP 2: Daily loads for monotony
-  const daily_loads = sessions.map(s => parseFloat(s['Total NRG expenditure (J/kg)']) || 0)
+  const daily_loads = sessions.map(s => parseFloat(s[CSV_COLUMNS.total_nrg]) || 0)
   const monotony = computeMonotony(daily_loads)
 
   // STEP 3: Resolve match references (user-entered values take priority, fall back to defaults)
@@ -120,27 +121,27 @@ function aggregateSessions(sessions) {
   const max = key => Math.max(...sessions.map(s => parseFloat(s[key]) || 0))
 
   return {
-    total_distance:       sum('Total Distance (m)'),
-    hsr_distance:         sum('Distance(4+5) (m) (speed ≥ 4.00m/s)'),
-    sprint_distance:      sum('Distance speed zone 5 (m) (speed ≥ 5.50m/s)'),
-    hmld:                 sum('HMLD (m) (MetPow > 25.5W/kg)'),
-    total_nrg:            sum('Total NRG expenditure (J/kg)'),
-    nrg_above_th:         sum('NRG expenditure above TH (J/kg)'),
-    total_accelerations:  sum('Total Accelerations (accel > 2.0m/s² and time ≥ 0.5s)'),
-    total_decelerations:  sum('Total Decelerations (accel < -2.0m/s² and time ≥ 0.5s)'),
-    mechanical_load:      sum('Total Accelerations (accel > 2.0m/s² and time ≥ 0.5s)') +
-                          sum('Total Decelerations (accel < -2.0m/s² and time ≥ 0.5s)'),
-    equivalent_distance:  sum('Equivalent distance (m)'),
-    high_efforts:         sum('High Efforts (MetPow > 25.5W/kg)'),
-    avg_metabolic_power:  avg('Average metabolic power (W/kg)'),
-    max_metabolic_power:  max('Max metabolic power (W/kg)'),
-    top_speed:            max('Top speed (km/h)'),
-    avg_speed:            avg('Average speed (km/h)'),
-    intensity_indicator:  avg('Intensity indicator'),
-    avg_hr:               avg('Average HR (bpm)'),
-    max_hr:               max('Maximum HR (bpm)'),
-    heart_exertion:       sum('Heart exertion'),
-    heart_exertion_above_th: sum('Heart exertion above TH'),
+    total_distance:       sum(CSV_COLUMNS.total_distance),
+    hsr_distance:         sum(CSV_COLUMNS.zone4plus5),
+    sprint_distance:      sum(CSV_COLUMNS.zone5_distance),
+    hmld:                 sum(CSV_COLUMNS.hmld),
+    total_nrg:            sum(CSV_COLUMNS.total_nrg),
+    nrg_above_th:         sum(CSV_COLUMNS.nrg_above_th),
+    total_accelerations:  sum(CSV_COLUMNS.total_acc),
+    total_decelerations:  sum(CSV_COLUMNS.total_dec),
+    mechanical_load:      sum(CSV_COLUMNS.total_acc) +
+                          sum(CSV_COLUMNS.total_dec),
+    equivalent_distance:  sum(CSV_COLUMNS.equivalent_distance),
+    high_efforts:         sum(CSV_COLUMNS.high_efforts),
+    avg_metabolic_power:  avg(CSV_COLUMNS.avg_metabolic),
+    max_metabolic_power:  max(CSV_COLUMNS.max_metabolic),
+    top_speed:            max(CSV_COLUMNS.top_speed),
+    avg_speed:            avg(CSV_COLUMNS.avg_speed),
+    intensity_indicator:  avg(CSV_COLUMNS.intensity_indicator),
+    avg_hr:               avg(CSV_COLUMNS.avg_hr),
+    max_hr:               max(CSV_COLUMNS.max_hr),
+    heart_exertion:       sum(CSV_COLUMNS.heart_exertion),
+    heart_exertion_above_th: sum(CSV_COLUMNS.heart_exertion_th),
   }
 }
 
@@ -241,8 +242,8 @@ function computeFatigueIndex(sessions, refs) {
   let hasHRData = false
 
   for (const s of sessions) {
-    const nrg = parseFloat(s['Total NRG expenditure (J/kg)']) || 0
-    const he = parseFloat(s['Heart exertion'])
+    const nrg = parseFloat(s[CSV_COLUMNS.total_nrg]) || 0
+    const he = parseFloat(s[CSV_COLUMNS.heart_exertion])
 
     const nrgPct = refs.nrg > 0 ? (nrg / refs.nrg) * 100 : 0
     const isHRAvailable = !isNaN(he) && he > 0

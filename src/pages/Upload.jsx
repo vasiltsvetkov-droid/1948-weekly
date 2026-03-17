@@ -15,30 +15,79 @@ function normalizeHeader(h) {
     .toLowerCase()
 }
 
-// Build a mapping from actual CSV headers to our expected column names
+// Build a mapping from actual CSV headers to our expected column names.
+// Uses prefix matching for zone columns whose thresholds vary across device configurations.
 function buildHeaderMap(actualHeaders) {
   const expectedEntries = Object.values(CSV_COLUMNS)
   const normalizedExpected = expectedEntries.map(h => ({ original: h, normalized: normalizeHeader(h) }))
 
-  const map = {} // actual header -> expected header
+  const map = {} // actual header -> expected column name
+  const speedUnitMap = {} // track detected speed units
+
   for (const actual of actualHeaders) {
     const norm = normalizeHeader(actual)
-    const match = normalizedExpected.find(e => e.normalized === norm)
-    if (match) {
-      map[actual] = match.original
+    // Try exact match first
+    const exact = normalizedExpected.find(e => e.normalized === norm)
+    if (exact) {
+      map[actual] = exact.original
+      continue
+    }
+    // Prefix match: actual header starts with an expected prefix
+    // This handles varying zone thresholds (e.g. "HR zone 1 (mm:ss) (HR <= 105)" matches "HR zone 1")
+    const prefix = normalizedExpected.find(e => norm.startsWith(e.normalized))
+    if (prefix) {
+      map[actual] = prefix.original
+      continue
+    }
+    // Special case: Top speed / Average speed with unit variants (m/s vs km/h)
+    if (/^top speed/.test(norm)) {
+      map[actual] = CSV_COLUMNS.top_speed
+      if (norm.includes('m/s')) speedUnitMap.top_speed = 'm/s'
+    } else if (/^average speed/.test(norm)) {
+      map[actual] = CSV_COLUMNS.avg_speed
+      if (norm.includes('m/s')) speedUnitMap.avg_speed = 'm/s'
     }
   }
-  return map
+  return { map, speedUnitMap }
 }
 
-// Remap a CSV row's keys from actual (possibly mangled) headers to expected column names
-function remapRow(row, headerMap) {
+// Strip Excel formula wrapping (="value" → value) from a cell value
+function stripExcelFormula(val) {
+  if (typeof val === 'string') {
+    const m = val.match(/^="?(.*?)"?$/)
+    if (m) return m[1]
+  }
+  return val
+}
+
+// Remap a CSV row's keys from actual (possibly mangled) headers to expected column names,
+// strip Excel formula wrapping, and convert speed units if needed.
+function remapRow(row, headerMap, speedUnitMap) {
   const out = {}
-  for (const [actualKey, value] of Object.entries(row)) {
+  for (const [actualKey, rawValue] of Object.entries(row)) {
     const mappedKey = headerMap[actualKey] || actualKey
-    out[mappedKey] = value
+    out[mappedKey] = stripExcelFormula(rawValue)
+  }
+  // Convert m/s → km/h for speed columns if the CSV used m/s
+  if (speedUnitMap.top_speed === 'm/s' && out[CSV_COLUMNS.top_speed]) {
+    const v = parseFloat(out[CSV_COLUMNS.top_speed])
+    if (!isNaN(v)) out[CSV_COLUMNS.top_speed] = String((v * 3.6).toFixed(2))
+  }
+  if (speedUnitMap.avg_speed === 'm/s' && out[CSV_COLUMNS.avg_speed]) {
+    const v = parseFloat(out[CSV_COLUMNS.avg_speed])
+    if (!isNaN(v)) out[CSV_COLUMNS.avg_speed] = String((v * 3.6).toFixed(2))
   }
   return out
+}
+
+// Check if a row is an NA / rest-day row (player present but all metric values are NA or empty)
+function isNARow(row) {
+  const skipKeys = new Set([CSV_COLUMNS.player, CSV_COLUMNS.date])
+  for (const [key, val] of Object.entries(row)) {
+    if (skipKeys.has(key)) continue
+    if (val && String(val).trim() !== '' && String(val).trim().toUpperCase() !== 'NA') return false
+  }
+  return true
 }
 
 function parseDate(dateStr) {
@@ -113,11 +162,13 @@ export default function Upload() {
         skipEmptyLines: true,
         complete: (results) => {
           const actualHeaders = results.meta?.fields || []
-          const headerMap = buildHeaderMap(actualHeaders)
+          const { map: headerMap, speedUnitMap } = buildHeaderMap(actualHeaders)
           results.data.forEach(rawRow => {
-            const row = remapRow(rawRow, headerMap)
+            const row = remapRow(rawRow, headerMap, speedUnitMap)
             const name = row[CSV_COLUMNS.player]
-            if (!name) return
+            if (!name || String(name).trim().toUpperCase() === 'NA') return
+            // Skip rest-day / NA rows where all metrics are empty or NA
+            if (isNARow(row)) return
             if (!allSessions[name]) allSessions[name] = []
             allSessions[name].push(row)
           })
@@ -352,6 +403,21 @@ export default function Upload() {
   return (
     <div style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '1.9rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Upload CSV Data</h1>
+
+      {/* GPS Coverage Disclaimer */}
+      <div style={{
+        padding: '0.625rem 1rem',
+        marginBottom: '1.25rem',
+        background: 'rgba(251,191,36,0.06)',
+        border: '1px solid rgba(251,191,36,0.25)',
+        borderRadius: '4px',
+        fontFamily: 'var(--font-data)',
+        fontSize: '0.75rem',
+        color: 'rgba(251,191,36,0.9)',
+        lineHeight: 1.5,
+      }}>
+        For optimal accuracy of the analysis, at least 80% of the training days has to be recorded with the GPS system.
+      </div>
 
       {/* Drop Zone */}
       <div

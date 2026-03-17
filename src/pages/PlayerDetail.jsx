@@ -514,6 +514,22 @@ export default function PlayerDetail() {
 
           {/* Detailed Analysis Panel (knowledge-grounded) */}
           <DetailedAnalysis recommendations={recommendations} />
+
+          {/* GPS Coverage Disclaimer */}
+          <div style={{
+            marginTop: '2rem',
+            padding: '0.625rem 1rem',
+            background: 'rgba(251,191,36,0.06)',
+            border: '1px solid rgba(251,191,36,0.25)',
+            borderRadius: '4px',
+            fontFamily: 'var(--font-data)',
+            fontSize: '0.7rem',
+            color: 'rgba(251,191,36,0.7)',
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}>
+            For optimal accuracy of the analysis, at least 80% of the training days has to be recorded with the GPS system.
+          </div>
         </>
       )}
     </div>
