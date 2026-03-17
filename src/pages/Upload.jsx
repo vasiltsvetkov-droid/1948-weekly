@@ -19,7 +19,10 @@ function normalizeHeader(h) {
 // Uses prefix matching for zone columns whose thresholds vary across device configurations.
 function buildHeaderMap(actualHeaders) {
   const expectedEntries = Object.values(CSV_COLUMNS)
-  const normalizedExpected = expectedEntries.map(h => ({ original: h, normalized: normalizeHeader(h) }))
+  // Sort by length descending so longer prefixes match first (e.g. "Heart exertion above TH" before "Heart exertion")
+  const normalizedExpected = expectedEntries
+    .map(h => ({ original: h, normalized: normalizeHeader(h) }))
+    .sort((a, b) => b.normalized.length - a.normalized.length)
 
   const map = {} // actual header -> expected column name
   const speedUnitMap = {} // track detected speed units
@@ -30,22 +33,19 @@ function buildHeaderMap(actualHeaders) {
     const exact = normalizedExpected.find(e => e.normalized === norm)
     if (exact) {
       map[actual] = exact.original
-      continue
+    } else {
+      // Prefix match: actual header starts with an expected prefix
+      // This handles varying zone thresholds (e.g. "HR zone 1 (mm:ss) (HR <= 105)" matches "HR zone 1")
+      // Sorted by length desc so longer/more-specific prefixes win over shorter ones
+      const prefix = normalizedExpected.find(e => norm.startsWith(e.normalized))
+      if (prefix) {
+        map[actual] = prefix.original
+      }
     }
-    // Prefix match: actual header starts with an expected prefix
-    // This handles varying zone thresholds (e.g. "HR zone 1 (mm:ss) (HR <= 105)" matches "HR zone 1")
-    const prefix = normalizedExpected.find(e => norm.startsWith(e.normalized))
-    if (prefix) {
-      map[actual] = prefix.original
-      continue
-    }
-    // Special case: Top speed / Average speed with unit variants (m/s vs km/h)
-    if (/^top speed/.test(norm)) {
-      map[actual] = CSV_COLUMNS.top_speed
-      if (norm.includes('m/s')) speedUnitMap.top_speed = 'm/s'
-    } else if (/^average speed/.test(norm)) {
-      map[actual] = CSV_COLUMNS.avg_speed
-      if (norm.includes('m/s')) speedUnitMap.avg_speed = 'm/s'
+    // Detect speed units (m/s vs km/h) regardless of match method
+    if (norm.includes('m/s')) {
+      if (norm.startsWith('top speed')) speedUnitMap.top_speed = 'm/s'
+      else if (norm.startsWith('average speed')) speedUnitMap.avg_speed = 'm/s'
     }
   }
   return { map, speedUnitMap }
@@ -127,7 +127,11 @@ function getMonday(dateStr) {
   const day = d.getDay()
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   const monday = new Date(d.setDate(diff))
-  return monday.toISOString().split('T')[0]
+  // Use local date parts to avoid UTC timezone shift (toISOString converts to UTC, causing off-by-one)
+  const yyyy = monday.getFullYear()
+  const mm = String(monday.getMonth() + 1).padStart(2, '0')
+  const dd = String(monday.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
 }
 
 export default function Upload() {
@@ -311,7 +315,14 @@ export default function Upload() {
         const sessionRows = sessions.map(s => ({
           player_id: player.id,
           week_start_date: weekStart,
-          session_date: (() => { const pd = parseDate(s[CSV_COLUMNS.date]); return pd ? pd.toISOString().split('T')[0] : null })(),
+          session_date: (() => {
+            const pd = parseDate(s[CSV_COLUMNS.date])
+            if (!pd) return null
+            const yyyy = pd.getFullYear()
+            const mm = String(pd.getMonth() + 1).padStart(2, '0')
+            const dd = String(pd.getDate()).padStart(2, '0')
+            return `${yyyy}-${mm}-${dd}`
+          })(),
           data: s,
         }))
 
