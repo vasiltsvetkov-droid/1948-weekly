@@ -443,6 +443,13 @@ body {
   background: rgba(0, 0, 0, 0.04) !important;
 }
 
+/* ========== TOGGLE BUTTONS (Explanation, Postulates, Analysis) ========== */
+.explanation-toggle-btn:hover,
+button[style*="rgba(227,6,19,0.04)"]:hover {
+  background: rgba(227, 6, 19, 0.12) !important;
+  border-color: rgba(227, 6, 19, 0.35) !important;
+}
+
 /* ========== ANALYTICS GRID ========== */
 .analytics-grid > .glass-card {
   margin-bottom: 0;
