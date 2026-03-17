@@ -7,14 +7,11 @@ export default function LoadBar({ metricKey, label, value, refValue, pct }) {
   let barColor = '#10B981'
   if (pct != null && optimal) {
     if (pct >= optimal.min && pct <= optimal.max) {
-      barColor = '#10B981'
-    } else if (
-      (pct >= optimal.min * 0.8 && pct < optimal.min) ||
-      (pct > optimal.max && pct <= optimal.max * 1.2)
-    ) {
-      barColor = '#F59E0B'
+      barColor = '#10B981' // green — optimal
+    } else if (pct < optimal.min) {
+      barColor = '#F59E0B' // yellow — underload
     } else {
-      barColor = '#EF4444'
+      barColor = '#EF4444' // red — overload
     }
   }
 
