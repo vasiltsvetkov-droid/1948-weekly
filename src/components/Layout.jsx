@@ -6,6 +6,7 @@ import NeuralBackground from './NeuralBackground'
 const navItems = [
   { to: '/', label: 'Dashboard', icon: '⊞' },
   { to: '/upload', label: 'Upload', icon: '↑' },
+  { to: '/tools', label: 'Analysis Tools', icon: '◎' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
 
