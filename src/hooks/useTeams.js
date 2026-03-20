@@ -13,10 +13,11 @@ export function useTeams() {
       .select('*')
       .order('name')
       .then(({ data, error }) => {
-        if (error && (error.code === '42P01' || error.message?.includes('relation') || error.code === 'PGRST204' || String(error.code) === '404')) {
+        if (error) {
+          console.warn('useTeams fetch error:', error.code, error.message)
           setTableReady(false)
           setTeams([])
-        } else if (!error) {
+        } else {
           setTableReady(true)
           setTeams(data || [])
         }
