@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useWeeks, useSquadWeek } from '../hooks/useWeeklyData'
+import { useTeams } from '../hooks/useTeams'
 import { useState, useEffect } from 'react'
 
 function fmt(val) {
@@ -26,8 +27,10 @@ function tpiColor(val) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { weeks, loading: weeksLoading } = useWeeks()
+  const { teams } = useTeams()
   const [selectedWeek, setSelectedWeek] = useState(null)
-  const { data: squad, loading: squadLoading } = useSquadWeek(selectedWeek)
+  const [selectedTeamId, setSelectedTeamId] = useState('')
+  const { data: squad, loading: squadLoading } = useSquadWeek(selectedWeek, selectedTeamId || null)
 
   useEffect(() => {
     if (weeks.length && !selectedWeek) setSelectedWeek(weeks[0])
@@ -42,6 +45,29 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-8">
         <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2.2rem', color: 'var(--text-primary)' }}>Dashboard</h1>
         <div className="flex items-center gap-3">
+          {teams.length > 0 && (
+            <select
+              value={selectedTeamId}
+              onChange={(e) => setSelectedTeamId(e.target.value)}
+              className="px-4 py-2"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.85rem',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '2px',
+                color: 'var(--text-primary)',
+                outline: 'none',
+                cursor: 'pointer',
+                letterSpacing: '0.5px',
+              }}
+            >
+              <option value="">All Teams</option>
+              {teams.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          )}
           <select
             value={selectedWeek || ''}
             onChange={(e) => setSelectedWeek(e.target.value)}

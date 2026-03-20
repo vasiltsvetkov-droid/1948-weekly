@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient'
 import { computeMetrics } from '../lib/computeMetrics'
 import { generateRecommendations } from '../lib/generateRecommendations'
 import { CSV_COLUMNS } from '../constants/csvColumns'
+import { useTeams } from '../hooks/useTeams'
 
 // Normalize a header string for fuzzy matching: lowercase, strip non-ascii, collapse whitespace
 function normalizeHeader(h) {
@@ -140,8 +141,10 @@ export default function Upload() {
   const [processing, setProcessing] = useState(false)
   const [newPlayerModal, setNewPlayerModal] = useState(null)
   const [newPlayerPosition, setNewPlayerPosition] = useState('CM')
+  const [newPlayerTeamId, setNewPlayerTeamId] = useState('')
   const [error, setError] = useState(null)
   const navigate = useNavigate()
+  const { teams } = useTeams()
 
   const handleDrop = useCallback((e) => {
     e.preventDefault()
@@ -240,9 +243,11 @@ export default function Upload() {
   }
 
   const createPlayerAndContinue = async () => {
+    const row = { name: newPlayerModal, position: newPlayerPosition }
+    if (newPlayerTeamId) row.team_id = newPlayerTeamId
     const { data: newPlayer, error: createError } = await supabase
       .from('players')
-      .insert({ name: newPlayerModal, position: newPlayerPosition })
+      .insert(row)
       .select()
       .single()
 
@@ -606,6 +611,28 @@ export default function Upload() {
                 >
                   {['CB', 'FB', 'CM', 'WM', 'ST', 'GK'].map(p => (
                     <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Team</label>
+                <select
+                  value={newPlayerTeamId}
+                  onChange={(e) => setNewPlayerTeamId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-none"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.7rem',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">No team</option>
+                  {teams.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
               </div>

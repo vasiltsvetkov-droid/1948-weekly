@@ -42,7 +42,7 @@ export function useWeeks() {
   return { weeks, loading }
 }
 
-export function useSquadWeek(weekStartDate) {
+export function useSquadWeek(weekStartDate, teamId) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -54,13 +54,19 @@ export function useSquadWeek(weekStartDate) {
     setLoading(true)
     supabase
       .from('weekly_aggregates')
-      .select('*, players(name, position)')
+      .select('*, players(name, position, team_id)')
       .eq('week_start_date', weekStartDate)
       .then(({ data: rows, error }) => {
-        if (!error) setData(rows || [])
+        if (!error) {
+          let filtered = rows || []
+          if (teamId) {
+            filtered = filtered.filter(r => r.players?.team_id === teamId)
+          }
+          setData(filtered)
+        }
         setLoading(false)
       })
-  }, [weekStartDate])
+  }, [weekStartDate, teamId])
 
   return { data, loading }
 }
