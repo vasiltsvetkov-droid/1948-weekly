@@ -10,7 +10,7 @@ const METRIC_KEYS = ['total_distance', 'hsr', 'sprint', 'hmld', 'nrg', 'acc', 'd
 export default function Settings() {
   const [tab, setTab] = useState('squad')
   const { players, loading, refetch } = usePlayers()
-  const { teams, refetch: refetchTeams } = useTeams()
+  const { teams, refetch: refetchTeams, tableReady: teamsTableReady } = useTeams()
   const [newName, setNewName] = useState('')
   const [newPosition, setNewPosition] = useState('CM')
   const [newTeamId, setNewTeamId] = useState('')
@@ -70,9 +70,16 @@ export default function Settings() {
     refetch()
   }
 
+  const [teamError, setTeamError] = useState(null)
+
   const handleAddTeam = async () => {
     if (!newTeamName.trim()) return
-    await supabase.from('teams').insert({ name: newTeamName.trim() })
+    setTeamError(null)
+    const { error } = await supabase.from('teams').insert({ name: newTeamName.trim() })
+    if (error) {
+      setTeamError('Failed to create team. Make sure the teams table exists in your database. Run the migration SQL from supabase/schema.sql.')
+      return
+    }
     setNewTeamName('')
     refetchTeams()
   }
@@ -157,7 +164,7 @@ export default function Settings() {
       <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 p-1 w-fit" style={{ ...cardStyle }}>
+      <div className="flex gap-2 mb-6 p-1 w-fit" style={{ ...cardStyle }}>
         {['squad', 'teams', 'refs'].map(t => (
           <button
             key={t}
@@ -325,6 +332,45 @@ export default function Settings() {
 
       {tab === 'teams' && (
         <div>
+          {!teamsTableReady && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              marginBottom: '1rem',
+              background: 'rgba(251,191,36,0.06)',
+              border: '1px solid rgba(251,191,36,0.25)',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-data)',
+              fontSize: '0.8rem',
+              color: 'rgba(251,191,36,0.9)',
+              lineHeight: 1.6,
+            }}>
+              The <strong>teams</strong> table does not exist yet. Run the migration SQL in your Supabase SQL editor:
+              <pre style={{ marginTop: '0.5rem', fontSize: '0.7rem', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '2px', overflowX: 'auto' }}>
+{`CREATE TABLE IF NOT EXISTS teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz default now()
+);
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "auth_all" ON teams FOR ALL TO authenticated USING (true) WITH CHECK (true);
+ALTER TABLE players ADD COLUMN IF NOT EXISTS team_id uuid REFERENCES teams(id) ON DELETE SET NULL;`}
+              </pre>
+            </div>
+          )}
+
+          {teamError && (
+            <div style={{
+              padding: '0.625rem 1rem',
+              marginBottom: '1rem',
+              background: 'rgba(239,68,68,0.06)',
+              border: '1px solid rgba(239,68,68,0.2)',
+              borderRadius: '4px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.7rem',
+              color: '#EF4444',
+            }}>{teamError}</div>
+          )}
+
           {/* Create Team */}
           <div className="p-4 mb-4 flex gap-2 items-end flex-wrap" style={{ ...cardStyle }}>
             <div className="flex-1 min-w-[200px]">

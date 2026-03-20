@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 export function useTeams() {
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
+  const [tableReady, setTableReady] = useState(true)
 
   const fetch = () => {
     setLoading(true)
@@ -12,12 +13,18 @@ export function useTeams() {
       .select('*')
       .order('name')
       .then(({ data, error }) => {
-        if (!error) setTeams(data || [])
+        if (error && (error.code === '42P01' || error.message?.includes('relation') || error.code === 'PGRST204' || String(error.code) === '404')) {
+          setTableReady(false)
+          setTeams([])
+        } else if (!error) {
+          setTableReady(true)
+          setTeams(data || [])
+        }
         setLoading(false)
       })
   }
 
   useEffect(() => { fetch() }, [])
 
-  return { teams, loading, refetch: fetch }
+  return { teams, loading, refetch: fetch, tableReady }
 }
