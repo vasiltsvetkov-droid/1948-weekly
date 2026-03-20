@@ -15,7 +15,7 @@ const tools = [
     tag: 'GPS / Load Monitoring',
     name: 'GPS Data Extractor',
     desc: 'Process and extract GPS session data.',
-    href: 'https://gps-processor-app-a4f7f.web.app/login',
+    href: 'https://claude.ai/public/artifacts/53d92bf8-0849-4f6a-81ba-bd8cf2cf71ac',
   },
   {
     tag: 'Data Pipeline',
