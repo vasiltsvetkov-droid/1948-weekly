@@ -7,6 +7,7 @@ import Upload from './pages/Upload'
 import PlayerDetail from './pages/PlayerDetail'
 import Settings from './pages/Settings'
 import History from './pages/History'
+import AnalysisTools from './pages/AnalysisTools'
 
 export default function App() {
   return (
@@ -19,6 +20,7 @@ export default function App() {
           <Route path="/player/:id" element={<PlayerDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/history/:id" element={<History />} />
+          <Route path="/tools" element={<AnalysisTools />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

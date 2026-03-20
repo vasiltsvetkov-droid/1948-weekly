@@ -455,6 +455,20 @@ button[style*="rgba(227,6,19,0.04)"]:hover {
   margin-bottom: 0;
 }
 
+/* ========== TOOL CARD (Analysis Tools) ========== */
+.tool-card-link:hover {
+  transform: translateY(-8px) scale(1.02) !important;
+  border-color: rgba(227, 6, 19, 0.4) !important;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.4),
+    var(--shadow-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.tool-card-link:hover .tool-card-arrow {
+  transform: translateX(4px);
+  color: var(--color-primary) !important;
+}
+
 /* ========== PRINT ========== */
 @media print {
   .glass-card, .glass-card:hover {
