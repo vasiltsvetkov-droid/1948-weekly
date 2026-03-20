@@ -164,7 +164,7 @@ export default function Settings() {
       <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', color: 'var(--text-primary)', marginBottom: '1.5rem' }}>Settings</h1>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-6 p-1 w-fit" style={{ ...cardStyle }}>
+      <div className="flex gap-3 mb-6 w-fit">
         {['squad', 'teams', 'refs'].map(t => (
           <button
             key={t}
@@ -173,8 +173,9 @@ export default function Settings() {
             style={{
               fontFamily: 'var(--font-main)',
               borderRadius: '2px',
-              background: tab === t ? 'var(--color-primary)' : 'transparent',
+              background: tab === t ? 'var(--color-primary)' : 'var(--bg-card)',
               color: tab === t ? '#FFFFFF' : 'var(--text-secondary)',
+              border: tab === t ? '1px solid var(--color-primary)' : '1px solid var(--glass-border)',
             }}
           >
             {t === 'squad' ? 'Squad' : t === 'teams' ? 'Teams' : 'Match References'}
