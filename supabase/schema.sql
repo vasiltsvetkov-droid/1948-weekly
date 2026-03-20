@@ -1,8 +1,16 @@
+-- Teams
+create table teams (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_at timestamptz default now()
+);
+
 -- Players
 create table players (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   position text not null check (position in ('CB','FB','CM','WM','ST','GK')),
+  team_id uuid references teams(id) on delete set null,
   created_at timestamptz default now()
 );
 
@@ -96,6 +104,7 @@ create table team_snapshots (
 );
 
 -- Enable Row Level Security on all tables
+alter table teams enable row level security;
 alter table players enable row level security;
 alter table match_references enable row level security;
 alter table weekly_sessions enable row level security;
@@ -103,6 +112,7 @@ alter table weekly_aggregates enable row level security;
 alter table team_snapshots enable row level security;
 
 -- RLS policies: authenticated users can read and write all rows
+create policy "auth_all" on teams for all to authenticated using (true) with check (true);
 create policy "auth_all" on players for all to authenticated using (true) with check (true);
 create policy "auth_all" on match_references for all to authenticated using (true) with check (true);
 create policy "auth_all" on weekly_sessions for all to authenticated using (true) with check (true);
@@ -114,3 +124,10 @@ create policy "auth_all" on team_snapshots for all to authenticated using (true)
 -- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS acwr_nrg numeric;
 -- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS fatigue_index numeric;
 -- ALTER TABLE weekly_aggregates ADD COLUMN IF NOT EXISTS explanations jsonb;
+
+-- Migration: Add multi-team support
+-- Run these if upgrading from a previous schema version:
+-- CREATE TABLE IF NOT EXISTS teams (id uuid primary key default gen_random_uuid(), name text not null, created_at timestamptz default now());
+-- ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+-- CREATE POLICY "auth_all" ON teams FOR ALL TO authenticated USING (true) WITH CHECK (true);
+-- ALTER TABLE players ADD COLUMN IF NOT EXISTS team_id uuid REFERENCES teams(id) ON DELETE SET NULL;

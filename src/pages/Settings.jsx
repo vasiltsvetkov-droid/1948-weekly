@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { usePlayers } from '../hooks/usePlayer'
+import { useTeams } from '../hooks/useTeams'
 import { MATCH_DEFAULTS, METRIC_LABELS, METRIC_UNITS } from '../constants/matchDefaults'
 
 const POSITIONS = ['CB', 'FB', 'CM', 'WM', 'ST', 'GK']
@@ -9,15 +10,24 @@ const METRIC_KEYS = ['total_distance', 'hsr', 'sprint', 'hmld', 'nrg', 'acc', 'd
 export default function Settings() {
   const [tab, setTab] = useState('squad')
   const { players, loading, refetch } = usePlayers()
+  const { teams, refetch: refetchTeams } = useTeams()
   const [newName, setNewName] = useState('')
   const [newPosition, setNewPosition] = useState('CM')
+  const [newTeamId, setNewTeamId] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [editPosition, setEditPosition] = useState('CM')
+  const [editTeamId, setEditTeamId] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('')
   const [deletingAll, setDeletingAll] = useState(false)
+
+  // Teams state
+  const [newTeamName, setNewTeamName] = useState('')
+  const [editingTeamId, setEditingTeamId] = useState(null)
+  const [editTeamName, setEditTeamName] = useState('')
+  const [deleteTeamConfirm, setDeleteTeamConfirm] = useState(null)
 
   // Match References state
   const [selectedPlayerId, setSelectedPlayerId] = useState(null)
@@ -47,14 +57,36 @@ export default function Settings() {
 
   const handleAddPlayer = async () => {
     if (!newName.trim()) return
-    await supabase.from('players').insert({ name: newName.trim(), position: newPosition })
+    const row = { name: newName.trim(), position: newPosition }
+    if (newTeamId) row.team_id = newTeamId
+    await supabase.from('players').insert(row)
     setNewName('')
     refetch()
   }
 
   const handleEditSave = async () => {
-    await supabase.from('players').update({ name: editName, position: editPosition }).eq('id', editingId)
+    await supabase.from('players').update({ name: editName, position: editPosition, team_id: editTeamId || null }).eq('id', editingId)
     setEditingId(null)
+    refetch()
+  }
+
+  const handleAddTeam = async () => {
+    if (!newTeamName.trim()) return
+    await supabase.from('teams').insert({ name: newTeamName.trim() })
+    setNewTeamName('')
+    refetchTeams()
+  }
+
+  const handleEditTeamSave = async () => {
+    await supabase.from('teams').update({ name: editTeamName }).eq('id', editingTeamId)
+    setEditingTeamId(null)
+    refetchTeams()
+  }
+
+  const handleDeleteTeam = async (id) => {
+    await supabase.from('teams').delete().eq('id', id)
+    setDeleteTeamConfirm(null)
+    refetchTeams()
     refetch()
   }
 
@@ -68,13 +100,15 @@ export default function Settings() {
     if (deleteAllConfirmText !== 'DELETE ALL') return
     setDeletingAll(true)
     try {
-      // Delete in dependency order: aggregates, sessions, snapshots, references, then players
+      // Delete in dependency order: aggregates, sessions, snapshots, references, players, then teams
       await supabase.from('weekly_aggregates').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('weekly_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('team_snapshots').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('match_references').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       refetch()
+      refetchTeams()
     } catch (err) {
       console.error('Error deleting all data:', err)
     }
@@ -124,7 +158,7 @@ export default function Settings() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 p-1 w-fit" style={{ ...cardStyle }}>
-        {['squad', 'refs'].map(t => (
+        {['squad', 'teams', 'refs'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -136,7 +170,7 @@ export default function Settings() {
               color: tab === t ? '#FFFFFF' : 'var(--text-secondary)',
             }}
           >
-            {t === 'squad' ? 'Squad' : 'Match References'}
+            {t === 'squad' ? 'Squad' : t === 'teams' ? 'Teams' : 'Match References'}
           </button>
         ))}
       </div>
@@ -167,6 +201,18 @@ export default function Settings() {
                 {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>Team</label>
+              <select
+                value={newTeamId}
+                onChange={(e) => setNewTeamId(e.target.value)}
+                className="px-3 py-2 text-sm"
+                style={inputStyle}
+              >
+                <option value="">No team</option>
+                {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            </div>
             <button
               onClick={handleAddPlayer}
               className="btn-primary"
@@ -182,6 +228,7 @@ export default function Settings() {
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
                   <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Name</th>
                   <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Position</th>
+                  <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Team</th>
                   <th className="text-right p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Actions</th>
                 </tr>
               </thead>
@@ -209,6 +256,17 @@ export default function Settings() {
                             {POSITIONS.map(pos => <option key={pos} value={pos}>{pos}</option>)}
                           </select>
                         </td>
+                        <td className="p-3">
+                          <select
+                            value={editTeamId}
+                            onChange={(e) => setEditTeamId(e.target.value)}
+                            className="px-2 py-1 text-sm"
+                            style={inputStyle}
+                          >
+                            <option value="">No team</option>
+                            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                          </select>
+                        </td>
                         <td className="p-3 text-right space-x-2">
                           <button onClick={handleEditSave} style={{ color: 'var(--color-success)', fontSize: '0.75rem' }}>Save</button>
                           <button onClick={() => setEditingId(null)} style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Cancel</button>
@@ -218,9 +276,10 @@ export default function Settings() {
                       <>
                         <td className="p-3" style={{ color: 'var(--text-primary)' }}>{p.name}</td>
                         <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{p.position}</td>
+                        <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{p.teams?.name || '—'}</td>
                         <td className="p-3 text-right space-x-2">
                           <button
-                            onClick={() => { setEditingId(p.id); setEditName(p.name); setEditPosition(p.position) }}
+                            onClick={() => { setEditingId(p.id); setEditName(p.name); setEditPosition(p.position); setEditTeamId(p.team_id || '') }}
                             style={{ color: 'var(--color-info)', fontSize: '0.75rem' }}
                           >
                             Edit
@@ -260,6 +319,99 @@ export default function Settings() {
             >
               Delete All Player Data
             </button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'teams' && (
+        <div>
+          {/* Create Team */}
+          <div className="p-4 mb-4 flex gap-2 items-end flex-wrap" style={{ ...cardStyle }}>
+            <div className="flex-1 min-w-[200px]">
+              <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>Team Name</label>
+              <input
+                type="text"
+                value={newTeamName}
+                onChange={(e) => setNewTeamName(e.target.value)}
+                className="w-full px-3 py-2 text-sm"
+                style={inputStyle}
+                placeholder="Team name"
+              />
+            </div>
+            <button
+              onClick={handleAddTeam}
+              className="btn-primary"
+            >
+              Create Team
+            </button>
+          </div>
+
+          {/* Teams Table */}
+          <div className="overflow-hidden" style={{ ...cardStyle }}>
+            <table className="w-full text-sm" style={{ fontFamily: 'var(--font-data)' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Name</th>
+                  <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Players</th>
+                  <th className="text-right p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teams.map(t => {
+                  const teamPlayers = players.filter(p => p.team_id === t.id)
+                  return (
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                      {editingTeamId === t.id ? (
+                        <>
+                          <td className="p-3">
+                            <input
+                              type="text"
+                              value={editTeamName}
+                              onChange={(e) => setEditTeamName(e.target.value)}
+                              className="px-2 py-1 text-sm w-full"
+                              style={inputStyle}
+                            />
+                          </td>
+                          <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{teamPlayers.length}</td>
+                          <td className="p-3 text-right space-x-2">
+                            <button onClick={handleEditTeamSave} style={{ color: 'var(--color-success)', fontSize: '0.75rem' }}>Save</button>
+                            <button onClick={() => setEditingTeamId(null)} style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Cancel</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="p-3" style={{ color: 'var(--text-primary)' }}>{t.name}</td>
+                          <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{teamPlayers.length}</td>
+                          <td className="p-3 text-right space-x-2">
+                            <button
+                              onClick={() => { setEditingTeamId(t.id); setEditTeamName(t.name) }}
+                              style={{ color: 'var(--color-info)', fontSize: '0.75rem' }}
+                            >
+                              Edit
+                            </button>
+                            {deleteTeamConfirm === t.id ? (
+                              <>
+                                <button onClick={() => handleDeleteTeam(t.id)} style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>Confirm</button>
+                                <button onClick={() => setDeleteTeamConfirm(null)} style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Cancel</button>
+                              </>
+                            ) : (
+                              <button onClick={() => setDeleteTeamConfirm(t.id)} style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>Delete</button>
+                            )}
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  )
+                })}
+                {teams.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="p-4 text-center" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.75rem' }}>
+                      No teams created yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

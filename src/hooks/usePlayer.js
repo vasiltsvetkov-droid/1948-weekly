@@ -22,23 +22,26 @@ export function usePlayer(playerId) {
   return { player, loading }
 }
 
-export function usePlayers() {
+export function usePlayers(teamId) {
   const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetch = () => {
     setLoading(true)
-    supabase
+    let query = supabase
       .from('players')
-      .select('*')
+      .select('*, teams(name)')
       .order('name')
-      .then(({ data, error }) => {
-        if (!error) setPlayers(data || [])
-        setLoading(false)
-      })
+    if (teamId) {
+      query = query.eq('team_id', teamId)
+    }
+    query.then(({ data, error }) => {
+      if (!error) setPlayers(data || [])
+      setLoading(false)
+    })
   }
 
-  useEffect(() => { fetch() }, [])
+  useEffect(() => { fetch() }, [teamId])
 
   return { players, loading, refetch: fetch }
 }
