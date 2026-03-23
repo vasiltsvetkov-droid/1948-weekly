@@ -157,10 +157,56 @@ export default function PlayerDetail() {
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+    const pdfPageHeight = pdf.internal.pageSize.getHeight()
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width
+    let heightLeft = imgHeight
+    let position = 0
+
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight)
+    heightLeft -= pdfPageHeight
+
+    while (heightLeft > 0) {
+      position -= pdfPageHeight
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight)
+      heightLeft -= pdfPageHeight
+    }
+
     pdf.save(`${player?.name || 'player'}-report.pdf`)
   }
+
+  const handleExportHTML = async () => {
+    if (!pageRef.current) return
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#0A0A0A'
+    const canvas = await html2canvas(pageRef.current, { backgroundColor: bgColor, scale: 2 })
+    const imgData = canvas.toDataURL('image/png')
+    const playerName = player?.name || 'player'
+    const weekDate = latest?.week_start_date || ''
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${playerName} — Weekly Report${weekDate ? ` — ${weekDate}` : ''}</title>
+<style>
+  body { margin: 0; padding: 0; background: ${bgColor}; display: flex; justify-content: center; }
+  img { max-width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<img src="${imgData}" alt="${playerName} Report" />
+</body>
+</html>`
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${playerName}-report.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   if (playerLoading || historyLoading) {
     return <div className="p-8" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', letterSpacing: '1.5px' }}>Loading...</div>
@@ -254,7 +300,46 @@ export default function PlayerDetail() {
             )}
           </div>
         </div>
-        <button onClick={handleExportPDF} className="btn-primary">Export PDF</button>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setExportMenuOpen(prev => !prev)} className="btn-primary">
+            Export Report ▾
+          </button>
+          {exportMenuOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: '100%', marginTop: '0.35rem', zIndex: 50,
+              background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+              backdropFilter: 'blur(12px)', borderRadius: '4px', overflow: 'hidden',
+              minWidth: '150px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              <button
+                onClick={() => { setExportMenuOpen(false); handleExportPDF() }}
+                style={{
+                  display: 'block', width: '100%', padding: '0.6rem 1rem', textAlign: 'left',
+                  background: 'transparent', border: 'none', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => e.target.style.background = 'rgba(227,6,19,0.12)'}
+                onMouseLeave={e => e.target.style.background = 'transparent'}
+              >
+                Export as PDF
+              </button>
+              <button
+                onClick={() => { setExportMenuOpen(false); handleExportHTML() }}
+                style={{
+                  display: 'block', width: '100%', padding: '0.6rem 1rem', textAlign: 'left',
+                  background: 'transparent', border: 'none', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.5px',
+                  cursor: 'pointer', borderTop: '1px solid var(--glass-border)',
+                }}
+                onMouseEnter={e => e.target.style.background = 'rgba(227,6,19,0.12)'}
+                onMouseLeave={e => e.target.style.background = 'transparent'}
+              >
+                Export as HTML
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {!latest ? (
