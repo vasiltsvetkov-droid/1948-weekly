@@ -4,9 +4,11 @@ import { supabase } from '../lib/supabaseClient'
 import NeuralBackground from './NeuralBackground'
 
 const navItems = [
-  { to: '/', label: 'Dashboard', icon: '⊞' },
+  { to: '/', label: 'Microcycle', icon: '⊞' },
+  { to: '/mesocycle', label: 'Mesocycle', icon: '◈' },
   { to: '/upload', label: 'Upload', icon: '↑' },
   { to: '/tools', label: 'Analysis Tools', icon: '◎' },
+  { to: '/performance-testing', label: 'Perf. Testing', icon: '⊕' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ]
 

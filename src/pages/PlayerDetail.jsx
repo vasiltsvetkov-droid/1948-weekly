@@ -289,15 +289,24 @@ export default function PlayerDetail() {
     <div ref={pageRef} style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>{player.name}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="pos-badge">{player.position}</span>
-            {latest && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>
-                Week: {latest.week_start_date}
-              </span>
-            )}
+        <div className="flex items-center gap-4">
+          {player.photo_url ? (
+            <img src={player.photo_url} alt={player.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--glass-border)' }} />
+          ) : (
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', color: 'var(--text-muted)' }}>
+              {player.name?.[0] || '?'}
+            </div>
+          )}
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>{player.name}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="pos-badge">{player.position}</span>
+              {latest && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>
+                  Week: {latest.week_start_date}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div style={{ position: 'relative' }}>

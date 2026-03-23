@@ -3,11 +3,13 @@ import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Mesocycle from './pages/Mesocycle'
 import Upload from './pages/Upload'
 import PlayerDetail from './pages/PlayerDetail'
 import Settings from './pages/Settings'
 import History from './pages/History'
 import AnalysisTools from './pages/AnalysisTools'
+import PerformanceTesting from './pages/PerformanceTesting'
 
 export default function App() {
   return (
@@ -16,11 +18,13 @@ export default function App() {
       <Route element={<AuthGuard />}>
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
+          <Route path="/mesocycle" element={<Mesocycle />} />
           <Route path="/upload" element={<Upload />} />
           <Route path="/player/:id" element={<PlayerDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/history/:id" element={<History />} />
           <Route path="/tools" element={<AnalysisTools />} />
+          <Route path="/performance-testing" element={<PerformanceTesting />} />
         </Route>
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
