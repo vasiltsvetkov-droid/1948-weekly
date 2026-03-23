@@ -6,6 +6,16 @@ import { MATCH_DEFAULTS, METRIC_LABELS, METRIC_UNITS } from '../constants/matchD
 
 const POSITIONS = ['CB', 'FB', 'CM', 'WM', 'ST', 'GK']
 const METRIC_KEYS = ['total_distance', 'hsr', 'sprint', 'hmld', 'nrg', 'acc', 'dec']
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024 // 5MB
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
 
 export default function Settings() {
   const [tab, setTab] = useState('squad')
@@ -22,6 +32,7 @@ export default function Settings() {
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false)
   const [deleteAllConfirmText, setDeleteAllConfirmText] = useState('')
   const [deletingAll, setDeletingAll] = useState(false)
+  const [photoError, setPhotoError] = useState(null)
 
   // Teams state
   const [newTeamName, setNewTeamName] = useState('')
@@ -54,6 +65,27 @@ export default function Settings() {
         setRefValues(vals)
       })
   }, [selectedPlayerId])
+
+  const handlePhotoUpload = async (playerId, file) => {
+    setPhotoError(null)
+    if (!file) return
+    if (file.size > MAX_PHOTO_SIZE) {
+      setPhotoError('Photo must be under 5MB')
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('File must be an image')
+      return
+    }
+    const dataUrl = await fileToDataUrl(file)
+    await supabase.from('players').update({ photo_url: dataUrl }).eq('id', playerId)
+    refetch()
+  }
+
+  const handleRemovePhoto = async (playerId) => {
+    await supabase.from('players').update({ photo_url: null }).eq('id', playerId)
+    refetch()
+  }
 
   const handleAddPlayer = async () => {
     if (!newName.trim()) return
@@ -107,11 +139,13 @@ export default function Settings() {
     if (deleteAllConfirmText !== 'DELETE ALL') return
     setDeletingAll(true)
     try {
-      // Delete in dependency order: aggregates, sessions, snapshots, references, players, then teams
+      // Delete in dependency order: aggregates, sessions, snapshots, references, mesocycle, perf reports, players, then teams
       await supabase.from('weekly_aggregates').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('weekly_sessions').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('team_snapshots').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('match_references').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      await supabase.from('mesocycle_aggregates').delete().neq('id', '00000000-0000-0000-0000-000000000000')
+      await supabase.from('performance_reports').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('players').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       await supabase.from('teams').delete().neq('id', '00000000-0000-0000-0000-000000000000')
       refetch()
@@ -229,11 +263,16 @@ export default function Settings() {
             </button>
           </div>
 
+          {photoError && (
+            <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: '#EF4444' }}>{photoError}</div>
+          )}
+
           {/* Player Table */}
           <div className="overflow-hidden" style={{ ...cardStyle }}>
             <table className="w-full text-sm" style={{ fontFamily: 'var(--font-data)' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                  <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Photo</th>
                   <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Name</th>
                   <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Position</th>
                   <th className="text-left p-3" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>Team</th>
@@ -245,6 +284,20 @@ export default function Settings() {
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
                     {editingId === p.id ? (
                       <>
+                        <td className="p-3">
+                          <div className="flex items-center gap-2">
+                            {p.photo_url ? (
+                              <img src={p.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>?</div>
+                            )}
+                            <label style={{ cursor: 'pointer', color: 'var(--color-info)', fontSize: '0.7rem', fontFamily: 'var(--font-mono)' }}>
+                              Upload
+                              <input type="file" accept="image/*" hidden onChange={(e) => { if (e.target.files[0]) handlePhotoUpload(p.id, e.target.files[0]) }} />
+                            </label>
+                            {p.photo_url && <button onClick={() => handleRemovePhoto(p.id)} style={{ color: 'var(--color-danger)', fontSize: '0.65rem' }}>Remove</button>}
+                          </div>
+                        </td>
                         <td className="p-3">
                           <input
                             type="text"
@@ -282,6 +335,13 @@ export default function Settings() {
                       </>
                     ) : (
                       <>
+                        <td className="p-3">
+                          {p.photo_url ? (
+                            <img src={p.photo_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>?</div>
+                          )}
+                        </td>
                         <td className="p-3" style={{ color: 'var(--text-primary)' }}>{p.name}</td>
                         <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{p.position}</td>
                         <td className="p-3" style={{ color: 'var(--text-secondary)' }}>{p.teams?.name || '—'}</td>

@@ -43,7 +43,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen flex flex-col" style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       <div className="flex items-center justify-between mb-8">
-        <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2.2rem', color: 'var(--text-primary)' }}>Dashboard</h1>
+        <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2.2rem', color: 'var(--text-primary)' }}>Microcycle</h1>
         <div className="flex items-center gap-3">
           {teams.length > 0 && (
             <select
