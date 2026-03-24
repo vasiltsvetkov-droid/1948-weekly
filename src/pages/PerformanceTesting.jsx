@@ -13,6 +13,8 @@ export default function PerformanceTesting() {
   const [selectedPlayerId, setSelectedPlayerId] = useState('')
   const [viewingReport, setViewingReport] = useState(null)
   const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [uploadMode, setUploadMode] = useState('file') // 'file' or 'code'
+  const [htmlCode, setHtmlCode] = useState('')
   const fileInputRef = useRef(null)
 
   const fetchReports = async () => {
@@ -27,7 +29,31 @@ export default function PerformanceTesting() {
 
   useEffect(() => { fetchReports() }, [])
 
-  const handleUpload = async (e) => {
+  const saveReport = async (htmlContent) => {
+    if (!selectedPlayerId) {
+      setError('Please select a player first.')
+      return
+    }
+    setUploading(true)
+    const player = players.find(p => p.id === selectedPlayerId)
+    const title = player?.name || 'Unknown Player'
+
+    const { error: dbError } = await supabase
+      .from('performance_reports')
+      .insert({
+        player_id: selectedPlayerId,
+        title,
+        html_content: htmlContent,
+      })
+
+    if (dbError) {
+      setError('Failed to upload report. Make sure the performance_reports table exists.')
+    }
+    setUploading(false)
+    fetchReports()
+  }
+
+  const handleFileUpload = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
     setError(null)
@@ -40,30 +66,24 @@ export default function PerformanceTesting() {
       setError('File must be under 10MB.')
       return
     }
-    if (!selectedPlayerId) {
-      setError('Please select a player first.')
+
+    const text = await file.text()
+    await saveReport(text)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleCodeUpload = async () => {
+    setError(null)
+    if (!htmlCode.trim()) {
+      setError('Please paste HTML code first.')
       return
     }
-
-    setUploading(true)
-    const text = await file.text()
-    const player = players.find(p => p.id === selectedPlayerId)
-    const title = player?.name || 'Unknown Player'
-
-    const { error: dbError } = await supabase
-      .from('performance_reports')
-      .insert({
-        player_id: selectedPlayerId,
-        title,
-        html_content: text,
-      })
-
-    if (dbError) {
-      setError('Failed to upload report. Make sure the performance_reports table exists.')
+    if (new Blob([htmlCode]).size > MAX_FILE_SIZE) {
+      setError('HTML code must be under 10MB.')
+      return
     }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
-    fetchReports()
+    await saveReport(htmlCode)
+    setHtmlCode('')
   }
 
   const handleDelete = async (id) => {
@@ -115,7 +135,7 @@ export default function PerformanceTesting() {
             srcDoc={viewingReport.html_content}
             title={viewingReport.title}
             style={{ width: '100%', height: '80vh', border: 'none', background: '#fff' }}
-            sandbox="allow-same-origin"
+            sandbox="allow-scripts allow-same-origin"
           />
         </div>
       </div>
@@ -133,26 +153,53 @@ export default function PerformanceTesting() {
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
           Upload Report
         </div>
-        <div className="flex gap-3 items-end flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>Player</label>
-            <select
-              value={selectedPlayerId}
-              onChange={(e) => setSelectedPlayerId(e.target.value)}
-              className="w-full px-3 py-2 text-sm"
-              style={inputStyle}
+
+        {/* Player selector */}
+        <div className="flex-1 min-w-[200px] mb-4">
+          <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>Player</label>
+          <select
+            value={selectedPlayerId}
+            onChange={(e) => setSelectedPlayerId(e.target.value)}
+            className="w-full px-3 py-2 text-sm"
+            style={inputStyle}
+          >
+            <option value="">Select player...</option>
+            {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.position})</option>)}
+          </select>
+        </div>
+
+        {/* Upload mode toggle */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { key: 'file', label: 'Upload File' },
+            { key: 'code', label: 'Paste HTML Code' },
+          ].map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => { setUploadMode(key); setError(null) }}
+              style={{
+                fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px',
+                padding: '0.4rem 0.9rem', borderRadius: '2px', cursor: 'pointer',
+                background: uploadMode === key ? 'var(--color-primary)' : 'transparent',
+                color: uploadMode === key ? '#000' : 'var(--text-secondary)',
+                border: `1px solid ${uploadMode === key ? 'var(--color-primary)' : 'var(--glass-border)'}`,
+                transition: 'all 0.15s ease',
+              }}
             >
-              <option value="">Select player...</option>
-              {players.map(p => <option key={p.id} value={p.id}>{p.name} ({p.position})</option>)}
-            </select>
-          </div>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* File upload mode */}
+        {uploadMode === 'file' && (
           <div>
             <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>HTML Report File</label>
             <input
               ref={fileInputRef}
               type="file"
               accept=".html,.htm"
-              onChange={handleUpload}
+              onChange={handleFileUpload}
               disabled={uploading || !selectedPlayerId}
               className="text-sm"
               style={{
@@ -162,15 +209,49 @@ export default function PerformanceTesting() {
               }}
             />
           </div>
-        </div>
-        {uploading && (
+        )}
+
+        {/* Code paste mode */}
+        {uploadMode === 'code' && (
+          <div>
+            <label className="block text-xs mb-1" style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: '0.65rem', letterSpacing: '1px' }}>HTML Code</label>
+            <textarea
+              value={htmlCode}
+              onChange={(e) => setHtmlCode(e.target.value)}
+              placeholder="Paste your HTML report code here..."
+              rows={10}
+              className="w-full px-3 py-2 text-sm"
+              style={{
+                ...inputStyle,
+                fontFamily: 'var(--font-mono)', fontSize: '0.75rem',
+                resize: 'vertical', minHeight: '150px',
+              }}
+            />
+            <button
+              onClick={handleCodeUpload}
+              disabled={uploading || !selectedPlayerId || !htmlCode.trim()}
+              style={{
+                marginTop: '0.5rem', padding: '0.5rem 1.2rem', borderRadius: '2px',
+                fontFamily: 'var(--font-mono)', fontSize: '0.7rem', letterSpacing: '1px',
+                background: selectedPlayerId && htmlCode.trim() ? 'var(--color-primary)' : 'var(--glass-border)',
+                color: selectedPlayerId && htmlCode.trim() ? '#000' : 'var(--text-muted)',
+                border: 'none', cursor: selectedPlayerId && htmlCode.trim() ? 'pointer' : 'not-allowed',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {uploading ? 'Uploading...' : 'Upload Report'}
+            </button>
+          </div>
+        )}
+
+        {uploading && uploadMode === 'file' && (
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Uploading...</div>
         )}
         {error && (
           <div style={{ padding: '0.5rem 0.75rem', marginTop: '0.5rem', background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '2px', fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: '#EF4444' }}>{error}</div>
         )}
         <div style={{ fontFamily: 'var(--font-data)', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.75rem', lineHeight: 1.5 }}>
-          Upload HTML reports generated from the Analysis Tools section. Reports are stored with the player's name as the title for easy reference.
+          Upload HTML reports by selecting a file or pasting the HTML code directly. Reports are stored with the player's name as the title.
         </div>
       </div>
 
