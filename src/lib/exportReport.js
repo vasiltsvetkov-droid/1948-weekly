@@ -48,18 +48,24 @@ function circleGaugeSVG(value, inverted = false, size = 54) {
   </svg>`
 }
 
+/* ── Logos ── */
+const LOGO_DARK = 'https://i.imgur.com/LgVMPLV.png'
+const LOGO_LIGHT = 'https://i.imgur.com/7piXXXA.png'
+
 /* ── Theme toggle script (injected into HTML exports) ── */
 const themeToggleScript = `
 <script>
 (function(){
   var root = document.documentElement;
   var btn = document.getElementById('theme-toggle');
+  var logo = document.getElementById('header-logo');
   var current = 'dark';
   function apply(t){
     root.setAttribute('data-theme', t);
     current = t;
     btn.textContent = t === 'dark' ? '\\u2600' : '\\u263E';
     btn.title = t === 'dark' ? 'Switch to light theme' : 'Switch to dark theme';
+    if(logo) logo.src = t === 'dark' ? '${LOGO_DARK}' : '${LOGO_LIGHT}';
   }
   btn.addEventListener('click', function(){ apply(current === 'dark' ? 'light' : 'dark'); });
   apply('dark');
@@ -127,6 +133,9 @@ const reportCSS = `
 
   .chart-section { margin-top:24px; padding:18px; background:var(--card-bg); border:1px solid var(--card-border); border-radius:6px; }
   .chart-section .label { font-family:monospace; font-size:0.8rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text-heading); margin-bottom:12px; }
+
+  .header-logo { height:32px; width:auto; }
+  .report-footer { margin-top:32px; padding-top:16px; border-top:1px solid var(--border); text-align:center; font-family:monospace; font-size:0.6rem; letter-spacing:1px; color:var(--text-muted); }
 `
 
 /* ───────────────────────────────────────────────────
@@ -169,9 +178,12 @@ export function generateWeeklyHTML(squad, weekDate, teamName) {
 <button id="theme-toggle" title="Toggle theme"></button>
 <div class="page">
   <div class="header">
-    <div>
-      <h1>Microcycle Report</h1>
-      <div class="sub">${teamName || 'All Teams'}</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <img id="header-logo" src="${LOGO_DARK}" alt="Barin Sports" class="header-logo"/>
+      <div>
+        <h1>Microcycle Report</h1>
+        <div class="sub">${teamName || 'All Teams'}</div>
+      </div>
     </div>
     <div class="sub">${weekDate}</div>
   </div>
@@ -190,6 +202,8 @@ export function generateWeeklyHTML(squad, weekDate, teamName) {
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>
+
+  <div class="report-footer">&copy; 2026 Barin Sports PRO Sports Science. All Rights Reserved.</div>
 </div>
 ${themeToggleScript}
 </body></html>`
@@ -257,9 +271,12 @@ export function generateMesocycleHTML(squad, periodLabel, teamName) {
 <button id="theme-toggle" title="Toggle theme"></button>
 <div class="page">
   <div class="header">
-    <div>
-      <h1>Mesocycle Report</h1>
-      <div class="sub">${teamName || 'All Teams'} &mdash; 4 Microcycles</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <img id="header-logo" src="${LOGO_DARK}" alt="Barin Sports" class="header-logo"/>
+      <div>
+        <h1>Mesocycle Report</h1>
+        <div class="sub">${teamName || 'All Teams'} &mdash; 4 Microcycles</div>
+      </div>
     </div>
     <div class="sub">${periodLabel}</div>
   </div>
@@ -283,6 +300,8 @@ export function generateMesocycleHTML(squad, periodLabel, teamName) {
     <div class="label">Average PI Trend — 4 Microcycles</div>
     ${lineChart}
   </div>
+
+  <div class="report-footer">&copy; 2026 Barin Sports PRO Sports Science. All Rights Reserved.</div>
 </div>
 ${themeToggleScript}
 </body></html>`

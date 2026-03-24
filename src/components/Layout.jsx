@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import NeuralBackground from './NeuralBackground'
@@ -70,13 +70,13 @@ export default function Layout() {
       >
         {/* Logo — centered, with top spacing */}
         <div className="flex flex-col items-center pt-8 pb-5 px-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-          <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer" className="flex justify-center w-full">
+          <Link to="/home" className="flex justify-center w-full">
             <img
               src={theme === 'dark' ? darkLogo : lightLogo}
               alt="Barin Sports"
               className="w-28 h-auto hover:opacity-80 transition-opacity"
             />
-          </a>
+          </Link>
         </div>
 
         {/* Navigation categories — larger buttons with spacing and hover */}
@@ -144,6 +144,13 @@ export default function Layout() {
         <main className="flex-1 pb-16 md:pb-0">
           <Outlet />
         </main>
+
+        <footer className="hidden md:block text-center py-4 px-4" style={{
+          fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '0.5px',
+          color: 'var(--text-muted)', borderTop: '1px solid var(--glass-border)',
+        }}>
+          &copy; 2026 Barin Sports PRO Sports Science. All Rights Reserved.
+        </footer>
       </div>
 
       {/* Mobile Bottom Nav */}
