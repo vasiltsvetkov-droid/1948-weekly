@@ -1,7 +1,8 @@
 import { useNavigate, Link } from 'react-router-dom'
 import { useWeeks, useSquadWeek } from '../hooks/useWeeklyData'
 import { useTeams } from '../hooks/useTeams'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { generateWeeklyHTML, downloadHTML, downloadPDF } from '../lib/exportReport'
 
 function fmt(val) {
   if (val == null) return '—'
@@ -31,10 +32,28 @@ export default function Dashboard() {
   const [selectedWeek, setSelectedWeek] = useState(null)
   const [selectedTeamId, setSelectedTeamId] = useState('')
   const { data: squad, loading: squadLoading } = useSquadWeek(selectedWeek, selectedTeamId || null)
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   useEffect(() => {
     if (weeks.length && !selectedWeek) setSelectedWeek(weeks[0])
   }, [weeks])
+
+  const teamName = teams.find(t => t.id === selectedTeamId)?.name || ''
+
+  const handleExportHTML = () => {
+    const html = generateWeeklyHTML(squad, selectedWeek, teamName)
+    downloadHTML(html, `microcycle-report-${selectedWeek}.html`)
+    setExportMenuOpen(false)
+  }
+
+  const handleExportPDF = async () => {
+    setExporting(true)
+    const html = generateWeeklyHTML(squad, selectedWeek, teamName)
+    await downloadPDF(html, `microcycle-report-${selectedWeek}.pdf`)
+    setExporting(false)
+    setExportMenuOpen(false)
+  }
 
   const tpi = squad.length
     ? squad.reduce((sum, s) => sum + (s.api || 0), 0) / squad.length
@@ -90,6 +109,39 @@ export default function Dashboard() {
             {!weeks.length && <option value="">No data</option>}
           </select>
           <Link to="/upload" className="btn-primary">Upload</Link>
+          {squad.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                disabled={exporting}
+                style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.8rem', letterSpacing: '0.5px',
+                  padding: '0.5rem 1rem', borderRadius: '2px', cursor: 'pointer',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)', transition: 'all 0.15s ease',
+                }}
+              >
+                {exporting ? 'Exporting...' : 'Export'}
+              </button>
+              {exportMenuOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 30,
+                  background: 'var(--glass-bg)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid var(--glass-border)', borderRadius: '4px', overflow: 'hidden', minWidth: 160,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                }}>
+                  <button onClick={handleExportHTML} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >Export HTML</button>
+                  <button onClick={handleExportPDF} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >Export PDF</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
