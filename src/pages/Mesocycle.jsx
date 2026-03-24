@@ -1,8 +1,9 @@
 import { useNavigate } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useWeeks } from '../hooks/useWeeklyData'
 import { useTeams } from '../hooks/useTeams'
 import { useSquadMesocycle } from '../hooks/useMesocycle'
+import { generateMesocycleHTML, downloadHTML, downloadPDF } from '../lib/exportReport'
 
 function fmt(val) {
   if (val == null) return '—'
@@ -55,6 +56,25 @@ export default function Mesocycle() {
     selectedTeamId || null,
   )
 
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
+
+  const teamName = teams.find(t => t.id === selectedTeamId)?.name || ''
+
+  const handleExportHTML = () => {
+    const html = generateMesocycleHTML(squad, currentPeriod?.label || '', teamName)
+    downloadHTML(html, `mesocycle-report-${currentPeriod?.label || 'export'}.html`)
+    setExportMenuOpen(false)
+  }
+
+  const handleExportPDF = async () => {
+    setExporting(true)
+    const html = generateMesocycleHTML(squad, currentPeriod?.label || '', teamName)
+    await downloadPDF(html, `mesocycle-report-${currentPeriod?.label || 'export'}.pdf`)
+    setExporting(false)
+    setExportMenuOpen(false)
+  }
+
   const tpi = squad.length
     ? squad.reduce((sum, s) => sum + (s.api || 0), 0) / squad.length
     : null
@@ -92,6 +112,39 @@ export default function Mesocycle() {
             {periods.map((p, i) => <option key={i} value={i}>{p.label}</option>)}
             {!periods.length && <option value="">Not enough data (need 4+ weeks)</option>}
           </select>
+          {squad.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button
+                onClick={() => setExportMenuOpen(!exportMenuOpen)}
+                disabled={exporting}
+                style={{
+                  fontFamily: 'var(--font-mono)', fontSize: '0.8rem', letterSpacing: '0.5px',
+                  padding: '0.5rem 1rem', borderRadius: '2px', cursor: 'pointer',
+                  background: 'var(--bg-card)', border: '1px solid var(--border-color)',
+                  color: 'var(--text-primary)', transition: 'all 0.15s ease',
+                }}
+              >
+                {exporting ? 'Exporting...' : 'Export'}
+              </button>
+              {exportMenuOpen && (
+                <div style={{
+                  position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 30,
+                  background: 'var(--glass-bg)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+                  border: '1px solid var(--glass-border)', borderRadius: '4px', overflow: 'hidden', minWidth: 160,
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.5)',
+                }}>
+                  <button onClick={handleExportHTML} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >Export HTML</button>
+                  <button onClick={handleExportPDF} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '0.6rem 1rem', fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--text-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  >Export PDF</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
