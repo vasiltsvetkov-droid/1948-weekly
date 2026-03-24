@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation } from 'react-router-dom'
+import { NavLink, Outlet, useLocation, Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import NeuralBackground from './NeuralBackground'
@@ -70,13 +70,13 @@ export default function Layout() {
       >
         {/* Logo — centered, with top spacing */}
         <div className="flex flex-col items-center pt-8 pb-5 px-3" style={{ borderBottom: '1px solid var(--glass-border)' }}>
-          <a href="https://barinsports.com/" target="_blank" rel="noopener noreferrer" className="flex justify-center w-full">
+          <Link to="/home" className="flex justify-center w-full">
             <img
               src={theme === 'dark' ? darkLogo : lightLogo}
               alt="Barin Sports"
               className="w-28 h-auto hover:opacity-80 transition-opacity"
             />
-          </a>
+          </Link>
         </div>
 
         {/* Navigation categories — larger buttons with spacing and hover */}

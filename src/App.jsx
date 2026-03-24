@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import AuthGuard from './components/AuthGuard'
 import Layout from './components/Layout'
 import Login from './pages/Login'
+import Home from './pages/Home'
 import Dashboard from './pages/Dashboard'
 import Mesocycle from './pages/Mesocycle'
 import Upload from './pages/Upload'
@@ -16,6 +17,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route element={<AuthGuard />}>
+        <Route path="/home" element={<Home />} />
         <Route element={<Layout />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/mesocycle" element={<Mesocycle />} />
@@ -27,7 +29,7 @@ export default function App() {
           <Route path="/performance-testing" element={<PerformanceTesting />} />
         </Route>
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/home" replace />} />
     </Routes>
   )
 }
