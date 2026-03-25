@@ -13,8 +13,9 @@ function fmt(val) {
 function injuryBg(val) {
   if (val == null) return ''
   const score = val / 10
-  if (score >= 6) return 'rgba(239,68,68,0.06)'
-  if (score >= 4) return 'rgba(217,119,6,0.06)'
+  // Higher = better (safer). Low scores = high risk = red background
+  if (score <= 4) return 'rgba(239,68,68,0.06)'
+  if (score <= 6) return 'rgba(217,119,6,0.06)'
   return ''
 }
 
@@ -218,8 +219,8 @@ export default function Mesocycle() {
                         <td className="text-right px-5 py-4" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>{fmt(row.tmi)}</td>
                         <td className="text-right px-5 py-4" style={{
                           fontFamily: 'var(--font-mono)', fontSize: '0.95rem', fontWeight: 600,
-                          color: row.injury_risk != null && row.injury_risk / 10 > 6 ? '#EF4444'
-                            : row.injury_risk != null && row.injury_risk / 10 > 4 ? '#F59E0B' : '#10B981'
+                          color: row.injury_risk != null && row.injury_risk / 10 >= 7 ? '#10B981'
+                            : row.injury_risk != null && row.injury_risk / 10 >= 5 ? '#F59E0B' : '#EF4444'
                         }}>{fmt(row.injury_risk)}</td>
                         <td className="text-right px-5 py-4" style={{ color, fontSize: '1.1rem' }}>{symbol}</td>
                         <td className="text-right px-3 py-4" style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>→</td>
