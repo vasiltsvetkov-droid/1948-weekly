@@ -487,18 +487,14 @@ export default function Upload() {
       {/* Biomechanical Data Upload (coming soon) */}
       <div
         className="upload-zone"
-        style={{ marginTop: '1rem', opacity: 0.5, cursor: 'not-allowed' }}
-        onClick={(e) => e.preventDefault()}
+        style={{ marginTop: '1rem' }}
       >
-        <div style={{ fontSize: '2.5rem', opacity: 0.35, marginBottom: '0.75rem' }}>🦴</div>
+        <div style={{ fontSize: '2.5rem', opacity: 0.35, marginBottom: '0.75rem' }}>📂</div>
         <div style={{ fontFamily: 'var(--font-main)', fontWeight: 600, fontSize: '1.1rem', color: 'var(--text-primary)' }}>
           Upload Biomechanical Data
         </div>
         <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '0.25rem', letterSpacing: '0.5px' }}>
           Strength, Force, Neuromuscular, ROM etc.
-        </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginTop: '0.5rem', letterSpacing: '1.5px', textTransform: 'uppercase' }}>
-          Coming Soon
         </div>
       </div>
 
