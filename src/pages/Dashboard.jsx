@@ -12,8 +12,9 @@ function fmt(val) {
 function injuryBg(val) {
   if (val == null) return ''
   const score = val / 10
-  if (score >= 6) return 'rgba(239,68,68,0.06)'
-  if (score >= 4) return 'rgba(217,119,6,0.06)'
+  // Higher = better (safer). Low scores = high risk = red background
+  if (score <= 4) return 'rgba(239,68,68,0.06)'
+  if (score <= 6) return 'rgba(217,119,6,0.06)'
   return ''
 }
 

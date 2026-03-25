@@ -298,8 +298,8 @@ export function generateRecommendations(metrics, personalMaxSpeed) {
     })
   }
 
-  // Rule 12: Injury Risk Score
-  if (injuryRisk > 60) {
+  // Rule 12: Injury Risk Score (now higher = better/safer; low score = high risk)
+  if (injuryRisk !== null && injuryRisk < 40) {
     const factors = []
     if (acwr !== null && acwr > 1.3) factors.push(`ACWR spike (${acwr.toFixed(2)})`)
     const acwrMech = metrics.acwr_mechanical
