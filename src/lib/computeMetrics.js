@@ -1,4 +1,5 @@
 import { MATCH_DEFAULTS, OPTIMAL_LOAD_PCT } from '../constants/matchDefaults'
+import { CSV_COLUMNS } from '../constants/csvColumns'
 
 /**
  * computeMetrics
@@ -20,7 +21,7 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
   const totals = aggregateSessions(sessions)
 
   // STEP 2: Daily loads for monotony
-  const daily_loads = sessions.map(s => parseFloat(s['Total NRG expenditure (J/kg)']) || 0)
+  const daily_loads = sessions.map(s => parseFloat(s[CSV_COLUMNS.total_nrg]) || 0)
   const monotony = computeMonotony(daily_loads)
 
   // STEP 3: Resolve match references (user-entered values take priority, fall back to defaults)
@@ -40,10 +41,10 @@ export function computeMetrics({ sessions, matchRefs, history, position, persona
 
   // STEP 8: Indexes (all 0-100; display layer divides by 10)
   const { rtt, rttExplanation }   = computeRTT(acwr, load_pct, refs)
-  const { rs, rsExplanation }     = computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails)
+  const { rs, rsExplanation }     = computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails, load_pct.nrg)
   const { tmi, tmiExplanation }   = computeTMI(monotony)
   const { performance, perfExplanation } = computePerformanceIndex(rtt, rs, tmi)
-  const { injury_risk, injuryRiskExplanation } = computeInjuryRisk(acwr, totals, history, monotony, effectiveMaxSpeed, refs)
+  const { injury_risk, injuryRiskExplanation } = computeInjuryRisk(acwr, totals, history, monotony, effectiveMaxSpeed, refs, load_pct)
 
   const flags = [...acwr_flags]
   if (!personalMaxSpeed) flags.push('no_personal_max_speed')
@@ -120,27 +121,27 @@ function aggregateSessions(sessions) {
   const max = key => Math.max(...sessions.map(s => parseFloat(s[key]) || 0))
 
   return {
-    total_distance:       sum('Total Distance (m)'),
-    hsr_distance:         sum('Distance(4+5) (m) (speed ≥ 4.00m/s)'),
-    sprint_distance:      sum('Distance speed zone 5 (m) (speed ≥ 5.50m/s)'),
-    hmld:                 sum('HMLD (m) (MetPow > 25.5W/kg)'),
-    total_nrg:            sum('Total NRG expenditure (J/kg)'),
-    nrg_above_th:         sum('NRG expenditure above TH (J/kg)'),
-    total_accelerations:  sum('Total Accelerations (accel > 2.0m/s² and time ≥ 0.5s)'),
-    total_decelerations:  sum('Total Decelerations (accel < -2.0m/s² and time ≥ 0.5s)'),
-    mechanical_load:      sum('Total Accelerations (accel > 2.0m/s² and time ≥ 0.5s)') +
-                          sum('Total Decelerations (accel < -2.0m/s² and time ≥ 0.5s)'),
-    equivalent_distance:  sum('Equivalent distance (m)'),
-    high_efforts:         sum('High Efforts (MetPow > 25.5W/kg)'),
-    avg_metabolic_power:  avg('Average metabolic power (W/kg)'),
-    max_metabolic_power:  max('Max metabolic power (W/kg)'),
-    top_speed:            max('Top speed (km/h)'),
-    avg_speed:            avg('Average speed (km/h)'),
-    intensity_indicator:  avg('Intensity indicator'),
-    avg_hr:               avg('Average HR (bpm)'),
-    max_hr:               max('Maximum HR (bpm)'),
-    heart_exertion:       sum('Heart exertion'),
-    heart_exertion_above_th: sum('Heart exertion above TH'),
+    total_distance:       sum(CSV_COLUMNS.total_distance),
+    hsr_distance:         sum(CSV_COLUMNS.zone4plus5),
+    sprint_distance:      sum(CSV_COLUMNS.zone5_distance),
+    hmld:                 sum(CSV_COLUMNS.hmld),
+    total_nrg:            sum(CSV_COLUMNS.total_nrg),
+    nrg_above_th:         sum(CSV_COLUMNS.nrg_above_th),
+    total_accelerations:  sum(CSV_COLUMNS.total_acc),
+    total_decelerations:  sum(CSV_COLUMNS.total_dec),
+    mechanical_load:      sum(CSV_COLUMNS.total_acc) +
+                          sum(CSV_COLUMNS.total_dec),
+    equivalent_distance:  sum(CSV_COLUMNS.equivalent_distance),
+    high_efforts:         sum(CSV_COLUMNS.high_efforts),
+    avg_metabolic_power:  avg(CSV_COLUMNS.avg_metabolic),
+    max_metabolic_power:  max(CSV_COLUMNS.max_metabolic),
+    top_speed:            max(CSV_COLUMNS.top_speed),
+    avg_speed:            avg(CSV_COLUMNS.avg_speed),
+    intensity_indicator:  avg(CSV_COLUMNS.intensity_indicator),
+    avg_hr:               avg(CSV_COLUMNS.avg_hr),
+    max_hr:               max(CSV_COLUMNS.max_hr),
+    heart_exertion:       sum(CSV_COLUMNS.heart_exertion),
+    heart_exertion_above_th: sum(CSV_COLUMNS.heart_exertion_th),
   }
 }
 
@@ -241,8 +242,8 @@ function computeFatigueIndex(sessions, refs) {
   let hasHRData = false
 
   for (const s of sessions) {
-    const nrg = parseFloat(s['Total NRG expenditure (J/kg)']) || 0
-    const he = parseFloat(s['Heart exertion'])
+    const nrg = parseFloat(s[CSV_COLUMNS.total_nrg]) || 0
+    const he = parseFloat(s[CSV_COLUMNS.heart_exertion])
 
     const nrgPct = refs.nrg > 0 ? (nrg / refs.nrg) * 100 : 0
     const isHRAvailable = !isNaN(he) && he > 0
@@ -279,18 +280,35 @@ function scoreCloseness(value, target, tolerancePct = 10) {
   const deviation = Math.abs(value - target)
   const toleranceAbs = target * (tolerancePct / 100)
   if (deviation <= toleranceAbs) return 100
-  // Linear decay outside tolerance, bottoming out at 20
+  // Continuous decay outside tolerance using an asymptotic curve.
+  // This preserves differentiation at extreme deviations instead of
+  // hard-flooring at 20, which previously caused different positions
+  // to produce identical scores when both were far from target.
   const excessDeviation = deviation - toleranceAbs
-  const maxDeviation = target * 0.5 // at 50% deviation beyond tolerance, score = 20
-  return Math.max(20, Math.round(100 - (excessDeviation / maxDeviation) * 80))
+  const halfLife = target * 0.25 // deviation at which score drops to ~50 between max and floor
+  // Exponential decay from 100 toward a floor of 5
+  const decayed = 5 + 95 * Math.exp(-excessDeviation / halfLife)
+  return Math.round(Math.max(5, Math.min(100, decayed)))
 }
 
 /**
  * Score ACWR value. 0.8-1.3 = optimal (100). Outside = lower.
+ * When ACWR is null (no history), uses loadPctNrg as a proxy to estimate
+ * training load appropriateness, preserving position-specific differentiation.
  * Returns 0-100.
  */
-function scoreACWR(acwr) {
-  if (acwr === null) return 50
+function scoreACWR(acwr, loadPctNrg) {
+  if (acwr === null) {
+    // No history: use NRG load % as a proxy. If the player's weekly NRG
+    // is close to match reference (100%), assume training is appropriately
+    // loaded. Further from 100% → less confidence in readiness.
+    if (loadPctNrg != null) {
+      // Map load_pct distance from 100% to a 30-60 range (centered on 50)
+      const deviation = Math.abs(loadPctNrg - 100)
+      return Math.round(Math.max(30, 60 - deviation * 0.3))
+    }
+    return 50
+  }
   if (acwr >= 0.8 && acwr <= 1.3) return 100
   if (acwr < 0.8) {
     if (acwr < 0.4) return 15
@@ -333,7 +351,7 @@ function computeRTT(acwr, load_pct, refs) {
 
   // Component 2 (60%): ACWR for NRG (more weight)
   const acwrNrg = acwr.nrg
-  const acwrScore = scoreACWR(acwrNrg)
+  const acwrScore = scoreACWR(acwrNrg, load_pct.nrg)
 
   if (acwrNrg !== null) {
     if (acwrNrg >= 0.8 && acwrNrg <= 1.3) {
@@ -346,7 +364,7 @@ function computeRTT(acwr, load_pct, refs) {
       explanationParts.push(`ACWR for NRG (${acwrNrg.toFixed(2)}) is in the danger zone (>1.5), associated with 2–4× elevated injury risk. Immediate load reduction is recommended (Gabbett 2016).`)
     }
   } else {
-    explanationParts.push('Insufficient training history to compute ACWR for NRG. At least one prior week of data is needed.')
+    explanationParts.push('Insufficient training history to compute ACWR for NRG. At least one prior week of data is needed. Score is estimated from NRG load vs match reference.')
   }
 
   const rtt = Math.round(loadScore * 0.40 + acwrScore * 0.60)
@@ -369,14 +387,15 @@ function computeRTT(acwr, load_pct, refs) {
  * @param {number|null} fatigueIndex - Average weekly fatigue index
  * @param {boolean} hasHRData - Whether HR data was available
  * @param {Object[]} sessionFatigueDetails - Per-session fatigue details
+ * @param {number|null} loadPctNrg - NRG load % vs match reference (proxy for ACWR when null)
  * @returns {{ rs: number, rsExplanation: string }}
  */
-function computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails) {
+function computeRS(acwr, fatigueIndex, hasHRData, sessionFatigueDetails, loadPctNrg) {
   const explanationParts = []
 
   // Component 1: ACWR NRG
   const acwrNrg = acwr.nrg
-  const acwrScore = scoreACWR(acwrNrg)
+  const acwrScore = scoreACWR(acwrNrg, loadPctNrg)
 
   if (acwrNrg !== null) {
     if (acwrNrg >= 0.8 && acwrNrg <= 1.3) {
@@ -534,22 +553,30 @@ function computePerformanceIndex(rtt, rs, tmi) {
  * @param {number|null} monotony - Training monotony
  * @param {number} personalMaxSpeed - Max speed
  * @param {Object} refs - Match references
+ * @param {Object} load_pct - Load percentages vs match reference (for position-aware fallbacks)
  * @returns {{ injury_risk: number, injuryRiskExplanation: string }}
  */
-function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, refs) {
+function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, refs, load_pct) {
   let risk = 0
   const parts = []
   const factors = []
 
   // 1. ACWR Total Distance (30%) — both over- AND under-training are risk factors
   const a = acwr.total_distance
-  const acwrRisk = a === null ? 20
-    : a > 1.8 ? 100
-    : a > 1.5 ? 70
-    : a > 1.3 ? 40
-    : a >= 0.8 ? 0     // optimal zone — no risk
-    : a >= 0.6 ? 40    // mild under-training
-    : 70               // severe under-training
+  let acwrRisk
+  if (a !== null) {
+    acwrRisk = a > 1.8 ? 100 : a > 1.5 ? 70 : a > 1.3 ? 40 : 0
+  } else {
+    // No history: use load % vs match reference as a proxy.
+    // Very high or very low load relative to position-specific match ref
+    // indicates higher risk than moderate load.
+    const tdPct = load_pct?.total_distance
+    if (tdPct != null) {
+      acwrRisk = tdPct > 150 ? 60 : tdPct > 120 ? 35 : tdPct < 30 ? 30 : 15
+    } else {
+      acwrRisk = 20
+    }
+  }
   risk += acwrRisk * 0.30
   if (a !== null) {
     if (a > 1.5) factors.push(`ACWR total distance at ${a.toFixed(2)} is in the danger zone (>1.5), associated with 2–4× elevated non-contact injury risk (Gabbett 2016; Hulin et al. 2016)`)
@@ -564,11 +591,20 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
     ? history.map(h => h.mechanical_load || 0).reduce((a, b) => a + b, 0) / history.length
     : null
   const mechRatio = avgMech ? totals.mechanical_load / avgMech : null
-  const mechRisk = mechRatio === null ? 20
-    : mechRatio > 1.6 ? 100
-    : mechRatio > 1.4 ? 70
-    : mechRatio > 1.3 ? 40
-    : 0
+  let mechRisk
+  if (mechRatio !== null) {
+    mechRisk = mechRatio > 1.6 ? 100 : mechRatio > 1.4 ? 70 : mechRatio > 1.3 ? 40 : 0
+  } else {
+    // No history: estimate from acc+dec load % relative to match ref
+    const accPct = load_pct?.acc
+    const decPct = load_pct?.dec
+    if (accPct != null && decPct != null) {
+      const avgPct = (accPct + decPct) / 2
+      mechRisk = avgPct > 150 ? 55 : avgPct > 120 ? 30 : 10
+    } else {
+      mechRisk = 20
+    }
+  }
   risk += mechRisk * 0.25
   if (mechRatio !== null && mechRatio > 1.3) {
     factors.push(`Mechanical load (acc+dec) exceeds the 4-week average by ${Math.round((mechRatio - 1) * 100)}%, increasing eccentric overload risk on hamstrings and quadriceps (Dalen et al. 2016)`)

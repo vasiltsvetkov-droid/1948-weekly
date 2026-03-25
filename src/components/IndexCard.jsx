@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import CircularGauge from './CircularGauge'
 
 function scoreColor(v) {
@@ -16,8 +15,8 @@ const interpretations = {
   injury_risk: (v) => v >= 7 ? 'Low risk' : v >= 5 ? 'Moderate risk' : 'High risk',
 }
 
-export default function IndexCard({ label, dbKey, value, explanation }) {
-  const [showExplanation, setShowExplanation] = useState(false)
+export default function IndexCard({ label, dbKey, value, inverted = false, explanation, isOpen = false, onToggle }) {
+  const showExplanation = isOpen
   const displayVal = value != null ? (value / 10).toFixed(1) : '—'
   const numVal = value != null ? value / 10 : 0
   const interpret = interpretations[dbKey]
@@ -25,12 +24,12 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
 
   return (
     <div
-      className="index-card p-4 min-w-[140px] relative cursor-default"
+      className="index-card p-5 min-w-[160px] flex-1 relative cursor-default"
       style={{ '--ic-color': color }}
     >
       <div style={{
         fontFamily: 'var(--font-mono)',
-        fontSize: '0.6rem',
+        fontSize: '0.7rem',
         letterSpacing: '2px',
         textTransform: 'uppercase',
         color: 'var(--text-secondary)',
@@ -43,20 +42,22 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
         {label}
         {explanation && (
           <button
-            onClick={() => setShowExplanation(!showExplanation)}
+            onClick={() => onToggle && onToggle(dbKey)}
             className="transition-all"
             style={{
-              width: '16px',
-              height: '16px',
+              width: '20px',
+              height: '20px',
               borderRadius: '50%',
-              fontSize: '10px',
+              fontSize: '11px',
+              fontWeight: 700,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: showExplanation ? 'var(--color-primary)' : 'rgba(148,163,184,0.1)',
-              color: showExplanation ? 'white' : 'var(--text-secondary)',
-              border: '1px solid rgba(148,163,184,0.15)',
+              background: showExplanation ? 'var(--color-primary)' : 'rgba(227,6,19,0.12)',
+              color: showExplanation ? 'white' : 'var(--color-primary)',
+              border: showExplanation ? '1px solid var(--color-primary)' : '1px solid rgba(227,6,19,0.35)',
               cursor: 'pointer',
+              boxShadow: showExplanation ? '0 0 8px rgba(227,6,19,0.4)' : 'none',
             }}
             title="View explanation"
           >
@@ -69,7 +70,7 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
         <div className="absolute" style={{
           fontFamily: 'var(--font-main)',
           fontWeight: 700,
-          fontSize: '1.6rem',
+          fontSize: '1.8rem',
           lineHeight: 1,
           color,
         }}>
@@ -79,7 +80,7 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
       <div style={{
         fontFamily: 'var(--font-main)',
         fontWeight: 600,
-        fontSize: '0.85rem',
+        fontSize: '0.95rem',
         color,
         textAlign: 'center',
         marginTop: '0.75rem',
@@ -93,15 +94,15 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
             backdropFilter: 'blur(16px)',
             WebkitBackdropFilter: 'blur(16px)',
             border: '1px solid var(--glass-border)',
-            borderRadius: '12px',
-            padding: '0.875rem',
+            borderRadius: '2px',
+            padding: '1rem',
             boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
           }}
         >
           <div className="flex justify-between items-start mb-1.5">
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '1.5px', textTransform: 'uppercase', color: 'var(--color-primary)' }}>{label} Explanation</span>
             <button
-              onClick={() => setShowExplanation(false)}
+              onClick={() => onToggle && onToggle(null)}
               className="transition-colors"
               style={{ fontSize: '0.75rem', color: 'var(--text-muted)', cursor: 'pointer', background: 'none', border: 'none' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
@@ -110,7 +111,7 @@ export default function IndexCard({ label, dbKey, value, explanation }) {
               ✕
             </button>
           </div>
-          <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.78rem', lineHeight: 1.5, color: 'var(--text-secondary)' }}>{explanation}</p>
+          <p style={{ fontFamily: 'var(--font-data)', fontSize: '0.9rem', lineHeight: 1.65, color: 'var(--text-secondary)' }}>{explanation}</p>
         </div>
       )}
     </div>

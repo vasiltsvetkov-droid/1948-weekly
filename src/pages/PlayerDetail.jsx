@@ -15,11 +15,18 @@ import { MATCH_DEFAULTS, METRIC_LABELS } from '../constants/matchDefaults'
 import IndexCard from '../components/IndexCard'
 import LoadBar from '../components/LoadBar'
 import RecommendationCard from '../components/RecommendationCard'
+import DetailedAnalysis from '../components/DetailedAnalysis'
+import TrendLineChart from '../components/charts/TrendLineChart'
+import LoadRadarChart from '../components/charts/LoadRadarChart'
+import StackedAreaChart from '../components/charts/StackedAreaChart'
+import GaugeChart from '../components/charts/GaugeChart'
+import ZoneAreaChart from '../components/charts/ZoneAreaChart'
+import GroupedBarChart from '../components/charts/GroupedBarChart'
 
 const tooltipStyle = {
   backgroundColor: 'var(--glass-bg)',
   border: '1px solid var(--glass-border)',
-  borderRadius: 12,
+  borderRadius: 2,
   color: 'var(--text-primary)',
   backdropFilter: 'blur(8px)',
   fontFamily: 'var(--font-mono)',
@@ -55,25 +62,28 @@ function ACWRZoneBar({ value, label }) {
   )
 }
 
-function ExplanationBox({ title, text }) {
-  const [open, setOpen] = useState(false)
+function ExplanationBox({ title, text, id, openId, onToggle }) {
+  const open = openId === id
   if (!text) return null
   return (
     <div className="mt-3">
       <button
-        onClick={() => setOpen(!open)}
-        className="transition-colors"
+        onClick={() => onToggle(open ? null : id)}
+        className="explanation-toggle-btn"
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: '0.65rem',
           letterSpacing: '1px',
           color: 'var(--color-primary)',
-          background: 'none',
-          border: 'none',
+          background: open ? 'rgba(227,6,19,0.08)' : 'rgba(227,6,19,0.04)',
+          border: '1px solid rgba(227,6,19,0.2)',
+          borderRadius: '2px',
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.25rem',
+          gap: '0.35rem',
+          padding: '0.35rem 0.7rem',
+          transition: 'all 150ms ease',
         }}
       >
         {open ? '▾' : '▸'} {title || 'Why this score?'}
@@ -91,7 +101,18 @@ export default function PlayerDetail() {
   const { history, loading: historyLoading } = useHistory(id, 12)
   const personalMaxSpeed = usePersonalMaxSpeed(id)
   const [matchRefs, setMatchRefs] = useState(null)
+  const [openIndexExplanation, setOpenIndexExplanation] = useState(null)
+  const [openExplanationBox, setOpenExplanationBox] = useState(null)
   const pageRef = useRef(null)
+
+  const handleIndexToggle = (key) => {
+    setOpenIndexExplanation(prev => prev === key ? null : key)
+    setOpenExplanationBox(null)
+  }
+  const handleExplanationToggle = (id) => {
+    setOpenExplanationBox(prev => prev === id ? null : id)
+    setOpenIndexExplanation(null)
+  }
 
   const latest = history.length ? history[history.length - 1] : null
   const explanations = latest?.explanations || null
@@ -131,14 +152,61 @@ export default function PlayerDetail() {
 
   const handleExportPDF = async () => {
     if (!pageRef.current) return
-    const canvas = await html2canvas(pageRef.current, { backgroundColor: '#0A0A0A', scale: 2 })
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#0A0A0A'
+    const canvas = await html2canvas(pageRef.current, { backgroundColor: bgColor, scale: 2 })
     const imgData = canvas.toDataURL('image/png')
     const pdf = new jsPDF('p', 'mm', 'a4')
     const pdfWidth = pdf.internal.pageSize.getWidth()
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight)
+    const pdfPageHeight = pdf.internal.pageSize.getHeight()
+    const imgHeight = (canvas.height * pdfWidth) / canvas.width
+    let heightLeft = imgHeight
+    let position = 0
+
+    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight)
+    heightLeft -= pdfPageHeight
+
+    while (heightLeft > 0) {
+      position -= pdfPageHeight
+      pdf.addPage()
+      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imgHeight)
+      heightLeft -= pdfPageHeight
+    }
+
     pdf.save(`${player?.name || 'player'}-report.pdf`)
   }
+
+  const handleExportHTML = async () => {
+    if (!pageRef.current) return
+    const bgColor = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary').trim() || '#0A0A0A'
+    const canvas = await html2canvas(pageRef.current, { backgroundColor: bgColor, scale: 2 })
+    const imgData = canvas.toDataURL('image/png')
+    const playerName = player?.name || 'player'
+    const weekDate = latest?.week_start_date || ''
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${playerName} — Weekly Report${weekDate ? ` — ${weekDate}` : ''}</title>
+<style>
+  body { margin: 0; padding: 0; background: ${bgColor}; display: flex; justify-content: center; }
+  img { max-width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<img src="${imgData}" alt="${playerName} Report" />
+</body>
+</html>`
+    const blob = new Blob([html], { type: 'text/html' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${playerName}-report.html`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const [exportMenuOpen, setExportMenuOpen] = useState(false)
 
   if (playerLoading || historyLoading) {
     return <div className="p-8" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.7rem', color: 'var(--text-secondary)', letterSpacing: '1.5px' }}>Loading...</div>
@@ -180,22 +248,107 @@ export default function PlayerDetail() {
     'Monotony': h.monotony != null && isFinite(h.monotony) ? Number(Number(h.monotony).toFixed(2)) : null,
   }))
 
+  // --- New Knowledge-Driven Chart Data ---
+
+  // Mechanical Load Trend (12 weeks)
+  const mechTrendData = history.map(h => ({
+    week: h.week_start_date,
+    'ACWR Mechanical': h.acwr_mechanical != null ? Number(Number(h.acwr_mechanical).toFixed(2)) : null,
+  }))
+
+  // HSR + Sprint Weekly Trend (stacked area)
+  const hsrSprintData = history.map(h => ({
+    week: h.week_start_date,
+    'HSR Distance': h.hsr_distance != null ? Math.round(h.hsr_distance) : null,
+    'Sprint Distance': h.sprint_distance != null ? Math.round(h.sprint_distance) : null,
+  }))
+
+  // Recovery Status Timeline (zone area)
+  const rsTimelineData = history.map(h => ({
+    week: h.week_start_date,
+    'Recovery Status': h.rs != null ? Number((h.rs / 10).toFixed(1)) : null,
+  }))
+
+  // Speed Exposure Gauge
+  const speedExposureValue = (personalMaxSpeed && latest?.top_speed)
+    ? latest.top_speed / personalMaxSpeed
+    : null
+
+  // Position Benchmark Comparison (grouped bar — load % as current vs 100% benchmark)
+  const positionBenchmarkData = latest ? [
+    { metric: 'Total Dist', current: Math.round(latest.load_pct_total_distance || 0), benchmark: 100 },
+    { metric: 'HSR', current: Math.round(latest.load_pct_hsr || 0), benchmark: 100 },
+    { metric: 'Sprint', current: Math.round(latest.load_pct_sprint || 0), benchmark: 100 },
+    { metric: 'HMLD', current: Math.round(latest.load_pct_hmld || 0), benchmark: 100 },
+    { metric: 'NRG', current: Math.round(latest.load_pct_nrg || 0), benchmark: 100 },
+    { metric: 'Accel', current: Math.round(latest.load_pct_acc || 0), benchmark: 100 },
+    { metric: 'Decel', current: Math.round(latest.load_pct_dec || 0), benchmark: 100 },
+  ] : []
+
   return (
-    <div className="p-4 md:p-8 max-w-6xl mx-auto" ref={pageRef}>
+    <div ref={pageRef} style={{ padding: 'clamp(1.5rem, 3vw, 3rem)' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>{player.name}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="pos-badge">{player.position}</span>
-            {latest && (
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>
-                Week: {latest.week_start_date}
-              </span>
-            )}
+        <div className="flex items-center gap-4">
+          {player.photo_url ? (
+            <img src={player.photo_url} alt={player.name} style={{ width: 56, height: 56, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--glass-border)' }} />
+          ) : (
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--glass-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', color: 'var(--text-muted)' }}>
+              {player.name?.[0] || '?'}
+            </div>
+          )}
+          <div>
+            <h1 style={{ fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '2rem', letterSpacing: '0.5px', color: 'var(--text-primary)' }}>{player.name}</h1>
+            <div className="flex items-center gap-3 mt-2">
+              <span className="pos-badge">{player.position}</span>
+              {latest && (
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '0.5px' }}>
+                  Week: {latest.week_start_date}
+                </span>
+              )}
+            </div>
           </div>
         </div>
-        <button onClick={handleExportPDF} className="btn-primary">Export PDF</button>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setExportMenuOpen(prev => !prev)} className="btn-primary">
+            Export Report ▾
+          </button>
+          {exportMenuOpen && (
+            <div style={{
+              position: 'absolute', right: 0, top: '100%', marginTop: '0.35rem', zIndex: 50,
+              background: 'var(--glass-bg)', border: '1px solid var(--glass-border)',
+              backdropFilter: 'blur(12px)', borderRadius: '4px', overflow: 'hidden',
+              minWidth: '150px', boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+            }}>
+              <button
+                onClick={() => { setExportMenuOpen(false); handleExportPDF() }}
+                style={{
+                  display: 'block', width: '100%', padding: '0.6rem 1rem', textAlign: 'left',
+                  background: 'transparent', border: 'none', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.5px',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => e.target.style.background = 'rgba(227,6,19,0.12)'}
+                onMouseLeave={e => e.target.style.background = 'transparent'}
+              >
+                Export as PDF
+              </button>
+              <button
+                onClick={() => { setExportMenuOpen(false); handleExportHTML() }}
+                style={{
+                  display: 'block', width: '100%', padding: '0.6rem 1rem', textAlign: 'left',
+                  background: 'transparent', border: 'none', color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-mono)', fontSize: '0.72rem', letterSpacing: '0.5px',
+                  cursor: 'pointer', borderTop: '1px solid var(--glass-border)',
+                }}
+                onMouseEnter={e => e.target.style.background = 'rgba(227,6,19,0.12)'}
+                onMouseLeave={e => e.target.style.background = 'transparent'}
+              >
+                Export as HTML
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {!latest ? (
@@ -204,12 +357,12 @@ export default function PlayerDetail() {
         <>
           {/* Section A: Index Hero Cards */}
           <div className="section-label">Performance Indexes</div>
-          <div className="flex flex-wrap gap-3 mb-6">
-            <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} />
-            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
-            <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} />
-            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} />
-            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} explanation={explanations?.injury_risk} />
+          <div className="flex flex-wrap gap-4 mb-8 justify-center">
+            <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} isOpen={openIndexExplanation === 'api'} onToggle={handleIndexToggle} />
+            <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} isOpen={openIndexExplanation === 'rtt'} onToggle={handleIndexToggle} />
+            <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} isOpen={openIndexExplanation === 'rs'} onToggle={handleIndexToggle} />
+            <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} isOpen={openIndexExplanation === 'tmi'} onToggle={handleIndexToggle} />
+            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} inverted explanation={explanations?.injury_risk} isOpen={openIndexExplanation === 'injury_risk'} onToggle={handleIndexToggle} />
           </div>
 
           {/* ACWR NRG Visualization */}
@@ -223,7 +376,7 @@ export default function PlayerDetail() {
 
                 <div className="flex flex-wrap gap-4 mt-4">
                   {latest.fatigue_index != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-none" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Fatigue Index</span>
                       <span style={{
                         fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',
@@ -234,7 +387,7 @@ export default function PlayerDetail() {
                     </div>
                   )}
                   {latest.monotony != null && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-none" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(148,163,184,0.12)' }}>
                       <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.65rem', color: 'var(--text-secondary)', letterSpacing: '1px', textTransform: 'uppercase' }}>Monotony</span>
                       <span style={{
                         fontFamily: 'var(--font-main)', fontWeight: 700, fontSize: '0.85rem',
@@ -265,14 +418,34 @@ export default function PlayerDetail() {
                 </ResponsiveContainer>
               </div>
             </div>
-            <ExplanationBox title="ACWR & Recovery Explanation" text={explanations?.rs} />
+            <ExplanationBox title="ACWR & Recovery Explanation" text={explanations?.rs} id="acwr" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Section B: Load Achievement Panel */}
           <div className="section-label">Load Achievement</div>
           <div className="glass-card p-5 mb-6">
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              Weekly Load vs Match Reference
+            <div className="flex items-center justify-between mb-3">
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', letterSpacing: '2px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>
+                Weekly Load vs Match Reference
+              </div>
+              <div className="flex items-center gap-3" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.55rem', letterSpacing: '0.5px' }}>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#10B981' }}/><span style={{ color: 'var(--text-muted)' }}>Optimal</span></span>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#F59E0B' }}/><span style={{ color: 'var(--text-muted)' }}>Near</span></span>
+                <span className="flex items-center gap-1"><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }}/><span style={{ color: 'var(--text-muted)' }}>Outside</span></span>
+              </div>
+            </div>
+            <div style={{
+              fontFamily: 'var(--font-data)',
+              fontSize: '0.75rem',
+              lineHeight: 1.55,
+              color: 'var(--text-muted)',
+              marginBottom: '1rem',
+              padding: '0.5rem 0.75rem',
+              background: 'rgba(148,163,184,0.04)',
+              border: '1px solid rgba(148,163,184,0.08)',
+              borderRadius: '2px',
+            }}>
+              Percentage = weekly training total / single-match reference value. A typical training week should accumulate ~270–350% of match demands across 5–7 sessions. Values below 200% suggest underloading; above 400% indicates significant overload risk.
             </div>
             <LoadBar metricKey="total_distance" label="Total Distance" value={latest.total_distance} refValue={resolvedRefs.total_distance} pct={latest.load_pct_total_distance} />
             <LoadBar metricKey="hsr" label="HSR (Zone 4+5)" value={latest.hsr_distance} refValue={resolvedRefs.hsr} pct={latest.load_pct_hsr} />
@@ -306,7 +479,7 @@ export default function PlayerDetail() {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
-                <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} />
+                <ExplanationBox title="Monotony Explanation" text={explanations?.tmi} id="monotony" openId={openExplanationBox} onToggle={handleExplanationToggle} />
               </div>
             </>
           )}
@@ -340,7 +513,7 @@ export default function PlayerDetail() {
                 <Line type="monotone" dataKey="TMI" stroke="#a855f7" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
               </AreaChart>
             </ResponsiveContainer>
-            <ExplanationBox title="Performance Index Explanation" text={explanations?.performance} />
+            <ExplanationBox title="Performance Index Explanation" text={explanations?.performance} id="performance" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Injury Risk & ACWR Trend */}
@@ -362,7 +535,7 @@ export default function PlayerDetail() {
                 <Line yAxisId="right" type="monotone" dataKey="ACWR TD" stroke="#F59E0B" strokeWidth={2} dot={{ r: 2, fill: '#F59E0B' }} />
               </LineChart>
             </ResponsiveContainer>
-            <ExplanationBox title="Injury Risk Explanation" text={explanations?.injury_risk} />
+            <ExplanationBox title="Injury Risk Explanation" text={explanations?.injury_risk} id="injury_risk" openId={openExplanationBox} onToggle={handleExplanationToggle} />
           </div>
 
           {/* Weekly NRG & Monotony Trend */}
@@ -385,6 +558,58 @@ export default function PlayerDetail() {
             </ResponsiveContainer>
           </div>
 
+          {/* New Knowledge-Driven Charts */}
+          <div className="section-label">Advanced Analytics</div>
+          <div className="analytics-grid grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* Load Achievement Radar */}
+            <LoadRadarChart title="Load Achievement Radar" latest={latest} />
+
+            {/* Speed Exposure Gauge */}
+            {speedExposureValue != null && (
+              <GaugeChart
+                title="Speed Exposure — Vmax %"
+                value={speedExposureValue}
+                maxLabel={`${latest.top_speed?.toFixed(1) || '?'} / ${personalMaxSpeed?.toFixed(1) || '?'} km/h`}
+              />
+            )}
+
+            {/* Mechanical Load Trend */}
+            <TrendLineChart
+              title="Mechanical Load Trend — 12 Weeks"
+              data={mechTrendData}
+              dataKeys={['ACWR Mechanical']}
+              referenceLines={[
+                { value: 1.2, color: '#F59E0B' },
+                { value: 1.4, color: '#EF4444' },
+              ]}
+              yDomain={[0, 2.5]}
+            />
+
+            {/* HSR + Sprint Stacked Area */}
+            <StackedAreaChart
+              title="HSR + Sprint Distance — 12 Week Trend"
+              data={hsrSprintData}
+              dataKeys={['HSR Distance', 'Sprint Distance']}
+              colors={['#3B82F6', '#E30613']}
+            />
+
+            {/* Recovery Status Timeline */}
+            <ZoneAreaChart
+              title="Recovery Status Timeline — 12 Weeks"
+              data={rsTimelineData}
+              dataKey="Recovery Status"
+              yDomain={[0, 10]}
+            />
+
+            {/* Position Benchmark Comparison */}
+            {positionBenchmarkData.length > 0 && (
+              <GroupedBarChart
+                title={`Position Benchmark — ${player.position} Match Reference Comparison`}
+                data={positionBenchmarkData}
+              />
+            )}
+          </div>
+
           {/* Recommendations */}
           {recommendations.length > 0 && (
             <>
@@ -392,7 +617,9 @@ export default function PlayerDetail() {
               <div className="rec-panel">
                 <div className="rec-panel-header">
                   <span className="rec-panel-title">Load Management Recommendations</span>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Based on KB v1.0</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.6rem', color: 'var(--text-muted)', marginLeft: 'auto' }}>Knowledge-Driven — {Object.keys(
+                    recommendations.reduce((acc, r) => { if (r.topic) acc[r.topic] = true; return acc }, {})
+                  ).length} topics</span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
                   {recommendations.map((rec, i) => (
@@ -402,6 +629,25 @@ export default function PlayerDetail() {
               </div>
             </>
           )}
+
+          {/* Detailed Analysis Panel (knowledge-grounded) */}
+          <DetailedAnalysis recommendations={recommendations} />
+
+          {/* GPS Coverage Disclaimer */}
+          <div style={{
+            marginTop: '2rem',
+            padding: '0.625rem 1rem',
+            background: 'rgba(251,191,36,0.06)',
+            border: '1px solid rgba(251,191,36,0.25)',
+            borderRadius: '4px',
+            fontFamily: 'var(--font-data)',
+            fontSize: '0.7rem',
+            color: 'rgba(251,191,36,0.7)',
+            lineHeight: 1.5,
+            textAlign: 'center',
+          }}>
+            For optimal accuracy of the analysis, at least 80% of the training days has to be recorded with the GPS system.
+          </div>
         </>
       )}
     </div>
