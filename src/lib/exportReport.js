@@ -9,8 +9,10 @@ export function scoreColor(v) {
 }
 
 export function invertedColor(v) {
-  if (v <= 3) return '#10B981'
-  if (v <= 6) return '#F59E0B'
+  // Higher = safer (same as scoreColor — injury_risk is already stored as safety score)
+  if (v >= 7) return '#10B981'
+  if (v >= 5) return '#F59E0B'
+  if (v >= 3.5) return '#F97316'
   return '#EF4444'
 }
 
@@ -59,7 +61,7 @@ const themeToggleScript = `
   var root = document.documentElement;
   var btn = document.getElementById('theme-toggle');
   var logo = document.getElementById('header-logo');
-  var current = 'dark';
+  var current = root.getAttribute('data-theme') || 'dark';
   function apply(t){
     root.setAttribute('data-theme', t);
     current = t;
@@ -68,7 +70,7 @@ const themeToggleScript = `
     if(logo) logo.src = t === 'dark' ? '${LOGO_DARK}' : '${LOGO_LIGHT}';
   }
   btn.addEventListener('click', function(){ apply(current === 'dark' ? 'light' : 'dark'); });
-  apply('dark');
+  apply(current);
 })();
 <\/script>`
 
@@ -109,7 +111,7 @@ const reportCSS = `
   }
 
   body { background:var(--bg); color:var(--text); font-family:'Inter','Helvetica Neue',Arial,sans-serif; transition:background 0.2s,color 0.2s; }
-  .page { max-width:1100px; margin:0 auto; padding:28px 32px; }
+  .page { max-width:760px; margin:0 auto; padding:24px 28px; }
 
   .header { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:1px solid var(--border); padding-bottom:16px; margin-bottom:20px; }
   .header h1 { font-size:1.6rem; font-weight:700; letter-spacing:-0.5px; color:var(--text-heading); }
@@ -141,7 +143,9 @@ const reportCSS = `
 /* ───────────────────────────────────────────────────
    WEEKLY ONE-PAGER
    ─────────────────────────────────────────────────── */
-export function generateWeeklyHTML(squad, weekDate, teamName) {
+export function generateWeeklyHTML(squad, weekDate, teamName, theme) {
+  const activeTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark'
+  const activeLogo = activeTheme === 'light' ? LOGO_LIGHT : LOGO_DARK
   const n = squad.length || 1
   const avgPI = squad.reduce((s, r) => s + (r.api || 0), 0) / n
   const avgRTT = squad.reduce((s, r) => s + (r.rtt || 0), 0) / n
@@ -171,7 +175,7 @@ export function generateWeeklyHTML(squad, weekDate, teamName) {
     </tr>`
   }).join('')
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+  return `<!DOCTYPE html><html lang="en" data-theme="${activeTheme}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Weekly Report — ${weekDate}${teamName ? ` — ${teamName}` : ''}</title>
 <style>${reportCSS}</style></head><body>
@@ -179,7 +183,7 @@ export function generateWeeklyHTML(squad, weekDate, teamName) {
 <div class="page">
   <div class="header">
     <div style="display:flex;align-items:center;gap:14px">
-      <img id="header-logo" src="${LOGO_DARK}" alt="Barin Sports" class="header-logo"/>
+      <img id="header-logo" src="${activeLogo}" alt="Barin Sports" class="header-logo"/>
       <div>
         <h1>Microcycle Report</h1>
         <div class="sub">${teamName || 'All Teams'}</div>
@@ -212,7 +216,9 @@ ${themeToggleScript}
 /* ───────────────────────────────────────────────────
    MESOCYCLE ONE-PAGER
    ─────────────────────────────────────────────────── */
-export function generateMesocycleHTML(squad, periodLabel, teamName) {
+export function generateMesocycleHTML(squad, periodLabel, teamName, theme) {
+  const activeTheme = theme || document.documentElement.getAttribute('data-theme') || 'dark'
+  const activeLogo = activeTheme === 'light' ? LOGO_LIGHT : LOGO_DARK
   const n = squad.length || 1
   const avgPI = squad.reduce((s, r) => s + (r.api || 0), 0) / n
   const avgRTT = squad.reduce((s, r) => s + (r.rtt || 0), 0) / n
@@ -264,7 +270,7 @@ export function generateMesocycleHTML(squad, periodLabel, teamName) {
   // SVG line chart for average PI trend
   const lineChart = buildLineChartSVG(avgByWeek, weekLabels)
 
-  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+  return `<!DOCTYPE html><html lang="en" data-theme="${activeTheme}"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Mesocycle Report — ${periodLabel}${teamName ? ` — ${teamName}` : ''}</title>
 <style>${reportCSS}</style></head><body>
@@ -272,7 +278,7 @@ export function generateMesocycleHTML(squad, periodLabel, teamName) {
 <div class="page">
   <div class="header">
     <div style="display:flex;align-items:center;gap:14px">
-      <img id="header-logo" src="${LOGO_DARK}" alt="Barin Sports" class="header-logo"/>
+      <img id="header-logo" src="${activeLogo}" alt="Barin Sports" class="header-logo"/>
       <div>
         <h1>Mesocycle Report</h1>
         <div class="sub">${teamName || 'All Teams'} &mdash; 4 Microcycles</div>
@@ -372,9 +378,18 @@ export function downloadHTML(html, filename) {
 }
 
 export async function downloadPDF(html, filename) {
+  // Detect current theme from the app
+  const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark'
+  const bgColor = currentTheme === 'light' ? '#F8F9FA' : '#0A0A0A'
+
+  // Inject/override theme attribute into the HTML so the export matches
+  const themedHTML = html.replace(/<html lang="en"(?: data-theme="[^"]*")?>/,
+    `<html lang="en" data-theme="${currentTheme}">`)
+
   // Render standalone HTML in hidden iframe → canvas → PDF
   const iframe = document.createElement('iframe')
-  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:1100px;height:2000px;border:none;'
+  // Use portrait A4 proportions (210×297mm ≈ 794×1123px at 96dpi)
+  iframe.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:2000px;border:none;'
   document.body.appendChild(iframe)
 
   return new Promise((resolve) => {
@@ -384,9 +399,9 @@ export async function downloadPDF(html, filename) {
 
       const { default: html2canvas } = await import('html2canvas')
       const body = iframe.contentDocument.body
-      const canvas = await html2canvas(body, { backgroundColor: '#0A0A0A', scale: 2, width: 1100 })
+      const canvas = await html2canvas(body, { backgroundColor: bgColor, scale: 2, width: 794 })
       const imgData = canvas.toDataURL('image/png')
-      const pdf = new jsPDF('l', 'mm', 'a4') // landscape for one-pager
+      const pdf = new jsPDF('p', 'mm', [210, 297]) // portrait A4 (210mm × 297mm)
       const pdfW = pdf.internal.pageSize.getWidth()
       const pdfH = pdf.internal.pageSize.getHeight()
       const imgH = (canvas.height * pdfW) / canvas.width
@@ -405,7 +420,7 @@ export async function downloadPDF(html, filename) {
       resolve()
     }
     iframe.contentDocument.open()
-    iframe.contentDocument.write(html)
+    iframe.contentDocument.write(themedHTML)
     iframe.contentDocument.close()
   })
 }
