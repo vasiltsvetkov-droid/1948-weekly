@@ -1,0 +1,107 @@
+{
+  "metadata": {
+    "exportDate": "2026-02-24T05:49:54.356Z",
+    "totalRows": 4,
+    "totalColumns": 16,
+    "sourceFiles": [
+      {
+        "fileName": "wellness_2026-02-18_to_2026-02-23_1.csv",
+        "rowCount": 4,
+        "columnCount": 14,
+        "parsed": true
+      }
+    ]
+  },
+  "columns": [
+    "Name",
+    "Date",
+    "Duration (min)",
+    "Energy",
+    "Mood",
+    "Notes",
+    "RPE",
+    "Session Type",
+    "Sleep",
+    "Soreness",
+    "sRPE",
+    "Stress",
+    "Timestamp",
+    "Wellness Total",
+    "_sourceFile",
+    "_rowIndex"
+  ],
+  "data": [
+    {
+      "Date": "2/19/2026",
+      "Name": "Gabriela Stoeva",
+      "Mood": "4",
+      "Sleep": "4",
+      "Energy": "4",
+      "Soreness": "4",
+      "Stress": "2",
+      "Wellness Total": "18",
+      "Session Type": "training",
+      "Duration (min)": "110",
+      "RPE": "7",
+      "sRPE": "770",
+      "Notes": "",
+      "Timestamp": "2026-02-24T05:46:42.383Z",
+      "_sourceFile": "wellness_2026-02-18_to_2026-02-23_1.csv",
+      "_rowIndex": 1
+    },
+    {
+      "Date": "2/20/2026",
+      "Name": "Gabriela Stoeva",
+      "Mood": "4",
+      "Sleep": "4",
+      "Energy": "4",
+      "Soreness": "4",
+      "Stress": "2",
+      "Wellness Total": "18",
+      "Session Type": "training",
+      "Duration (min)": "",
+      "RPE": "",
+      "sRPE": "",
+      "Notes": "",
+      "Timestamp": "2026-02-24T05:47:21.819Z",
+      "_sourceFile": "wellness_2026-02-18_to_2026-02-23_1.csv",
+      "_rowIndex": 2
+    },
+    {
+      "Date": "2/21/2026",
+      "Name": "Gabriela Stoeva",
+      "Mood": "4",
+      "Sleep": "4",
+      "Energy": "4",
+      "Soreness": "4",
+      "Stress": "2",
+      "Wellness Total": "18",
+      "Session Type": "training",
+      "Duration (min)": "60",
+      "RPE": "6",
+      "sRPE": "360",
+      "Notes": "",
+      "Timestamp": "2026-02-24T05:47:52.113Z",
+      "_sourceFile": "wellness_2026-02-18_to_2026-02-23_1.csv",
+      "_rowIndex": 3
+    },
+    {
+      "Date": "2/22/2026",
+      "Name": "Gabriela Stoeva",
+      "Mood": "4",
+      "Sleep": "4",
+      "Energy": "4",
+      "Soreness": "4",
+      "Stress": "1",
+      "Wellness Total": "17",
+      "Session Type": "training",
+      "Duration (min)": "80",
+      "RPE": "6",
+      "sRPE": "480",
+      "Notes": "",
+      "Timestamp": "2026-02-24T05:48:22.071Z",
+      "_sourceFile": "wellness_2026-02-18_to_2026-02-23_1.csv",
+      "_rowIndex": 4
+    }
+  ]
+}
