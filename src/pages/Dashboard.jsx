@@ -212,9 +212,9 @@ export default function Dashboard() {
                       fontFamily: 'var(--font-mono)',
                       fontSize: '0.95rem',
                       fontWeight: 600,
-                      color: row.injury_risk != null && row.injury_risk / 10 > 6 ? '#EF4444'
-                        : row.injury_risk != null && row.injury_risk / 10 > 4 ? '#F59E0B'
-                        : '#10B981'
+                      color: row.injury_risk != null && row.injury_risk / 10 >= 7 ? '#10B981'
+                        : row.injury_risk != null && row.injury_risk / 10 >= 5 ? '#F59E0B'
+                        : '#EF4444'
                     }}>
                       {fmt(row.injury_risk)}
                     </td>
