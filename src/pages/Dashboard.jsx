@@ -10,8 +10,9 @@ function fmt(val) {
 function injuryBg(val) {
   if (val == null) return ''
   const score = val / 10
-  if (score >= 6) return 'rgba(239,68,68,0.06)'
-  if (score >= 4) return 'rgba(217,119,6,0.06)'
+  // Higher = better (safer). Low scores = high risk = red background
+  if (score <= 4) return 'rgba(239,68,68,0.06)'
+  if (score <= 6) return 'rgba(217,119,6,0.06)'
   return ''
 }
 
@@ -131,9 +132,9 @@ export default function Dashboard() {
                     fontFamily: 'var(--font-mono)',
                     fontSize: '0.72rem',
                     fontWeight: 600,
-                    color: row.injury_risk != null && row.injury_risk / 10 > 6 ? '#EF4444'
-                      : row.injury_risk != null && row.injury_risk / 10 > 4 ? '#F59E0B'
-                      : '#10B981'
+                    color: row.injury_risk != null && row.injury_risk / 10 >= 7.5 ? '#10B981'
+                      : row.injury_risk != null && row.injury_risk / 10 >= 5.5 ? '#F59E0B'
+                      : '#EF4444'
                   }}>
                     {fmt(row.injury_risk)}
                   </td>

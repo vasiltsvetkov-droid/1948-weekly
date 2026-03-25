@@ -209,7 +209,7 @@ export default function PlayerDetail() {
             <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} />
             <IndexCard label="RS" dbKey="rs" value={latest.rs} explanation={explanations?.rs} />
             <IndexCard label="TMI" dbKey="tmi" value={latest.tmi} explanation={explanations?.tmi} />
-            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} inverted explanation={explanations?.injury_risk} />
+            <IndexCard label="Injury Risk" dbKey="injury_risk" value={latest.injury_risk} explanation={explanations?.injury_risk} />
           </div>
 
           {/* ACWR NRG Visualization */}

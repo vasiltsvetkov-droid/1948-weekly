@@ -8,26 +8,20 @@ function scoreColor(v) {
   return '#EF4444'
 }
 
-function invertedColor(v) {
-  if (v <= 3) return '#10B981'
-  if (v <= 6) return '#F59E0B'
-  return '#EF4444'
-}
-
 const interpretations = {
   api: (v) => v >= 7 ? 'Excellent status' : v >= 5 ? 'Moderate status' : 'Needs attention',
   rtt: (v) => v >= 7 ? 'Ready to train' : v >= 5 ? 'Caution advised' : 'Rest recommended',
   rs: (v) => v >= 7 ? 'Well recovered' : v >= 5 ? 'Moderate recovery' : 'Recovery deficit',
   tmi: (v) => v >= 7 ? 'Good load variety' : v >= 5 ? 'Moderate variety' : 'Low variety',
-  injury_risk: (v) => v <= 3 ? 'Low risk' : v <= 6 ? 'Moderate risk' : 'High risk',
+  injury_risk: (v) => v >= 7 ? 'Low risk' : v >= 5 ? 'Moderate risk' : 'High risk',
 }
 
-export default function IndexCard({ label, dbKey, value, inverted = false, explanation }) {
+export default function IndexCard({ label, dbKey, value, explanation }) {
   const [showExplanation, setShowExplanation] = useState(false)
   const displayVal = value != null ? (value / 10).toFixed(1) : '—'
   const numVal = value != null ? value / 10 : 0
   const interpret = interpretations[dbKey]
-  const color = inverted ? invertedColor(numVal) : scoreColor(numVal)
+  const color = scoreColor(numVal)
 
   return (
     <div
@@ -71,7 +65,7 @@ export default function IndexCard({ label, dbKey, value, inverted = false, expla
         )}
       </div>
       <div className="relative flex items-center justify-center mb-2">
-        <CircularGauge value={numVal} inverted={inverted} color={color} />
+        <CircularGauge value={numVal} color={color} />
         <div className="absolute" style={{
           fontFamily: 'var(--font-main)',
           fontWeight: 700,
