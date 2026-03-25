@@ -650,10 +650,10 @@ function computeInjuryRisk(acwr, totals, history, monotony, personalMaxSpeed, re
 
   if (safetyScore >= 70) {
     parts.push(`Injury Risk score of ${display}/10 indicates low risk. Current training load is well-managed.`)
-  } else if (safetyScore >= 40) {
+  } else if (safetyScore >= 50) {
     parts.push(`Injury Risk score of ${display}/10 indicates moderate risk. Monitoring is advised.`)
   } else {
-    parts.push(`Injury Risk score of ${display}/10 indicates elevated risk from multiple concurrent factors.`)
+    parts.push(`Injury Risk score of ${display}/10 indicates high risk from multiple concurrent factors.`)
   }
 
   if (factors.length > 0) {
