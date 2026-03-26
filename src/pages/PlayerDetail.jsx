@@ -13,6 +13,9 @@ import { useHistory, usePersonalMaxSpeed } from '../hooks/useHistory'
 import { generateRecommendations } from '../lib/generateRecommendations'
 import { MATCH_DEFAULTS, METRIC_LABELS } from '../constants/matchDefaults'
 import IndexCard from '../components/IndexCard'
+import ScoreCard360 from '../components/ScoreCard360'
+import { useScores360 } from '../hooks/useScores360'
+import { INDEX_DEFS } from '../lib/barin360/constructs'
 import LoadBar from '../components/LoadBar'
 import RecommendationCard from '../components/RecommendationCard'
 import DetailedAnalysis from '../components/DetailedAnalysis'
@@ -116,6 +119,7 @@ export default function PlayerDetail() {
 
   const latest = history.length ? history[history.length - 1] : null
   const explanations = latest?.explanations || null
+  const { result: scores360, loading: scores360Loading } = useScores360(id, latest?.week_start_date)
 
   useEffect(() => {
     if (!id) return
@@ -355,8 +359,87 @@ export default function PlayerDetail() {
         <div className="py-12 text-center" style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.7rem' }}>No weekly data available for this player.</div>
       ) : (
         <>
-          {/* Section A: Index Hero Cards */}
-          <div className="section-label">Performance Indexes</div>
+          {/* Section: Barin 360 Scores */}
+          {scores360 && (
+            <>
+              <div className="section-label">Barin 360 — Athlete Scores</div>
+              {/* Data source summary */}
+              <div className="flex gap-3 mb-3 flex-wrap">
+                {scores360.sourceSummary.gps > 0 && (
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(6,182,212,0.1)', border: '1px solid rgba(6,182,212,0.3)', color: '#06b6d4' }}>
+                    GPS: {scores360.sourceSummary.gps} params
+                  </span>
+                )}
+                {scores360.sourceSummary.wellness > 0 && (
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(236,72,153,0.1)', border: '1px solid rgba(236,72,153,0.3)', color: '#ec4899' }}>
+                    Wellness: {scores360.sourceSummary.wellness} params
+                  </span>
+                )}
+                {scores360.sourceSummary.practitioner > 0 && (
+                  <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)', color: '#f97316' }}>
+                    Practitioner: {scores360.sourceSummary.practitioner} params
+                  </span>
+                )}
+                <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#a5b4fc' }}>
+                  Tier {scores360.normTier}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+                <ScoreCard360
+                  label="Readiness to Train" abbrev="RTT" color="#10b981"
+                  score={scores360.scores.rtt} confidence={scores360.confidence.rtt}
+                  constructs={scores360.indexes?.RTT?.constructs}
+                />
+                <ScoreCard360
+                  label="Recovery Status" abbrev="RS" color="#3b82f6"
+                  score={scores360.scores.rs} confidence={scores360.confidence.rs}
+                  constructs={scores360.indexes?.RS?.constructs}
+                />
+                <ScoreCard360
+                  label="Injury Risk" abbrev="IR" color="#ef4444"
+                  score={scores360.scores.ir} confidence={scores360.confidence.ir}
+                  higherIsBetter={false}
+                  constructs={scores360.indexes?.IR?.constructs}
+                  irCoverage={scores360.irCoverage}
+                  irUpperBound={scores360.irUpperBound}
+                />
+                <ScoreCard360
+                  label="Neuromuscular" abbrev="NMS" color="#f59e0b"
+                  score={scores360.scores.nms} confidence={scores360.confidence.nms}
+                  constructs={scores360.indexes?.NMS?.constructs}
+                  fatigueSuppressed={scores360.nmsFatigueSuppressed}
+                />
+                <ScoreCard360
+                  label="Mental Status" abbrev="MS" color="#8b5cf6"
+                  score={scores360.scores.ms} confidence={scores360.confidence.ms}
+                  constructs={scores360.indexes?.MS?.constructs}
+                />
+              </div>
+              {/* Flags */}
+              {scores360.flags?.length > 0 && (
+                <div className="mb-6 p-3 rounded-lg" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.2)' }}>
+                  <div className="text-xs font-semibold mb-1" style={{ color: '#f59e0b' }}>Flags</div>
+                  {scores360.flags.map((f, i) => (
+                    <div key={i} className="text-xs" style={{ color: 'var(--text-muted)' }}>{f}</div>
+                  ))}
+                </div>
+              )}
+              {/* Cross-index mods */}
+              {scores360.crossIndexMods?.length > 0 && (
+                <div className="mb-6 p-3 rounded-lg" style={{ background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)' }}>
+                  <div className="text-xs font-semibold mb-1" style={{ color: '#a5b4fc' }}>Cross-Index Intelligence</div>
+                  {scores360.crossIndexMods.map((m, i) => (
+                    <div key={i} className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {m.from} → {m.to}: {m.reason} ({m.adjustment > 0 ? '+' : ''}{m.adjustment.toFixed(1)}pts)
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Section A: Legacy Index Hero Cards */}
+          <div className="section-label">Legacy Performance Indexes</div>
           <div className="flex flex-wrap gap-4 mb-8 justify-center">
             <IndexCard label="Performance" dbKey="api" value={latest.api} explanation={explanations?.performance} isOpen={openIndexExplanation === 'api'} onToggle={handleIndexToggle} />
             <IndexCard label="RTT" dbKey="rtt" value={latest.rtt} explanation={explanations?.rtt} isOpen={openIndexExplanation === 'rtt'} onToggle={handleIndexToggle} />
