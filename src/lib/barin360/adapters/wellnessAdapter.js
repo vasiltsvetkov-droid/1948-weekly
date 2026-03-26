@@ -2,34 +2,81 @@
  * Barin Sports 360 — Subjective Wellness Adapter
  *
  * Converts wellness questionnaire data into universal parameter format.
- * Supports both form entry (single object) and CSV batch import.
+ * Supports:
+ *   1. Barin PRO JSON export format (1-5 scale wellness + RPE + sRPE)
+ *   2. Manual form entry (1-10 scale, stored in DB)
+ *   3. CSV batch import with fuzzy header matching
  */
 
+// ─── Scale normalization ───
+// Barin PRO uses 1-5, our engine expects 1-10
+const scale5to10 = (v) => v != null && !isNaN(v) ? Number(v) * 2 : null
+
 /**
- * Column aliases for CSV fuzzy matching.
- * Maps various header spellings to canonical wellness field names.
+ * Parse the Barin PRO wellness JSON export format.
+ * Returns an array of { playerName, date, entry } objects ready for DB insert.
+ *
+ * @param {Object} jsonData - Parsed JSON from the wellness export file
+ * @returns {Object[]} Array of { playerName, date, entry }
  */
-const WELLNESS_ALIASES = {
-  sleep_quality:      ['sleep quality', 'sleep_quality', 'sleepquality', 'sleep qual', 'sleep (1-10)'],
-  sleep_hours:        ['sleep hours', 'sleep_hours', 'sleephours', 'sleep duration', 'hours slept', 'sleep (h)'],
-  soreness:           ['soreness', 'muscle soreness', 'muscle_soreness', 'doms', 'soreness (1-10)'],
-  mood:               ['mood', 'mood (1-10)'],
-  stress:             ['stress', 'stress (1-10)', 'stress level'],
-  motivation:         ['motivation', 'motivation (1-10)'],
-  fatigue:            ['fatigue', 'fatigue (1-10)', 'subjective fatigue', 'fatigue_subjective'],
-  energy:             ['energy', 'energy level', 'energy (1-10)'],
-  rpe:                ['rpe', 'rpe (1-10)', 'session rpe', 'rpe last session'],
-  perceived_recovery: ['perceived recovery', 'perceived_recovery', 'prs', 'recovery (0-10)'],
-  confidence:         ['confidence', 'confidence (1-10)'],
-  life_stress:        ['life stress', 'life_stress', 'life stress (1-10)'],
-  appetite:           ['appetite', 'appetite (1-10)'],
-  joint_stiffness:    ['joint stiffness', 'joint_stiffness', 'stiffness (1-10)'],
+export function parseBarinWellnessJSON(jsonData) {
+  if (!jsonData?.data?.length) return []
+
+  return jsonData.data.map(row => {
+    // Parse date: handles "M/D/YYYY" format
+    const date = parseWellnessDate(row.Date)
+
+    return {
+      playerName: row.Name || '',
+      date,
+      entry: {
+        // Scale 1-5 → 1-10
+        sleep_quality:  scale5to10(row.Sleep),
+        mood:           scale5to10(row.Mood),
+        energy:         scale5to10(row.Energy),
+        soreness:       scale5to10(row.Soreness),
+        stress:         scale5to10(row.Stress),
+        // RPE is already 1-10
+        rpe:            row.RPE ? Number(row.RPE) : null,
+        // sRPE = RPE × Duration
+        srpe:           row.sRPE ? Number(row.sRPE) : null,
+        // Duration in minutes
+        duration_min:   row['Duration (min)'] ? Number(row['Duration (min)']) : null,
+        // Wellness total (raw 1-5 scale sum)
+        wellness_total: row['Wellness Total'] ? Number(row['Wellness Total']) : null,
+        // Session type
+        session_type:   row['Session Type'] || null,
+        notes:          row.Notes || null,
+      },
+    }
+  }).filter(r => r.playerName && r.date)
+}
+
+/**
+ * Parse various date formats from wellness data.
+ */
+function parseWellnessDate(dateStr) {
+  if (!dateStr) return null
+  // M/D/YYYY or MM/DD/YYYY
+  const mdy = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdy) {
+    return `${mdy[3]}-${mdy[1].padStart(2, '0')}-${mdy[2].padStart(2, '0')}`
+  }
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateStr)) return dateStr.slice(0, 10)
+  // DD.MM.YYYY
+  const dmy = dateStr.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/)
+  if (dmy) {
+    return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`
+  }
+  return null
 }
 
 /**
  * Convert a wellness entry (from form or DB row) into universal parameter records.
+ * Accepts both 1-10 scale (form/DB) and raw values.
  *
- * @param {Object} entry - Wellness entry with fields like { sleep_quality, soreness, mood, ... }
+ * @param {Object} entry - Wellness entry
  * @param {string} entryDate - ISO date string
  * @returns {Object} Map of { paramKey: { value, recordedAt } }
  */
@@ -40,7 +87,7 @@ export function adaptWellnessEntry(entry, entryDate) {
   const params = {}
 
   const map = (paramKey, value) => {
-    if (value != null && !isNaN(Number(value))) {
+    if (value != null && !isNaN(Number(value)) && Number(value) > 0) {
       params[paramKey] = { value: Number(value), recordedAt }
     }
   }
@@ -63,13 +110,44 @@ export function adaptWellnessEntry(entry, entryDate) {
   return params
 }
 
-/**
- * Parse a CSV row into a wellness entry using fuzzy header matching.
- *
- * @param {Object} row - Parsed CSV row (key = header, value = cell)
- * @param {Object} headerMap - Pre-computed mapping { canonicalField: actualHeader }
- * @returns {Object} Wellness entry object
- */
+// ─── CSV support ───
+const WELLNESS_ALIASES = {
+  sleep_quality:      ['sleep quality', 'sleep_quality', 'sleep', 'sleep (1-10)', 'sleep (1-5)'],
+  sleep_hours:        ['sleep hours', 'sleep_hours', 'sleep duration', 'hours slept'],
+  soreness:           ['soreness', 'muscle soreness', 'muscle_soreness', 'doms'],
+  mood:               ['mood'],
+  stress:             ['stress', 'stress level'],
+  motivation:         ['motivation'],
+  fatigue:            ['fatigue', 'subjective fatigue'],
+  energy:             ['energy', 'energy level'],
+  rpe:                ['rpe', 'session rpe'],
+  perceived_recovery: ['perceived recovery', 'prs', 'recovery'],
+  confidence:         ['confidence'],
+  life_stress:        ['life stress', 'life_stress'],
+  appetite:           ['appetite'],
+  joint_stiffness:    ['joint stiffness', 'joint_stiffness', 'stiffness'],
+}
+
+export function buildWellnessHeaderMap(headers) {
+  const headerMap = {}
+  const norm = headers.map(h => h.toLowerCase().trim())
+
+  for (const [field, aliases] of Object.entries(WELLNESS_ALIASES)) {
+    for (const alias of aliases) {
+      const idx = norm.indexOf(alias)
+      if (idx >= 0) { headerMap[field] = headers[idx]; break }
+    }
+    if (!headerMap[field]) {
+      for (let i = 0; i < norm.length; i++) {
+        if (norm[i].includes(field.replace(/_/g, ' '))) {
+          headerMap[field] = headers[i]; break
+        }
+      }
+    }
+  }
+  return headerMap
+}
+
 export function parseWellnessCSVRow(row, headerMap) {
   const entry = {}
   for (const [field, header] of Object.entries(headerMap)) {
@@ -80,53 +158,22 @@ export function parseWellnessCSVRow(row, headerMap) {
 }
 
 /**
- * Build a header map from CSV headers using fuzzy matching.
- *
- * @param {string[]} headers - Array of CSV column headers
- * @returns {Object} Map { canonicalField: matchedHeader }
- */
-export function buildWellnessHeaderMap(headers) {
-  const headerMap = {}
-  const normalizedHeaders = headers.map(h => h.toLowerCase().trim())
-
-  for (const [field, aliases] of Object.entries(WELLNESS_ALIASES)) {
-    for (const alias of aliases) {
-      const idx = normalizedHeaders.indexOf(alias.toLowerCase())
-      if (idx >= 0) {
-        headerMap[field] = headers[idx]
-        break
-      }
-    }
-    // Partial match fallback
-    if (!headerMap[field]) {
-      for (let i = 0; i < normalizedHeaders.length; i++) {
-        if (normalizedHeaders[i].includes(field.replace(/_/g, ' '))) {
-          headerMap[field] = headers[i]
-          break
-        }
-      }
-    }
-  }
-
-  return headerMap
-}
-
-/**
- * Get the list of expected wellness fields for form building.
+ * Wellness form field definitions for UI building.
+ * Supports both 1-5 (Barin PRO) and 1-10 (extended) scales.
  */
 export const WELLNESS_FIELDS = [
-  { key: 'sleep_quality',      label: 'Sleep Quality',       min: 1, max: 10, step: 1, description: '1 = terrible, 10 = excellent' },
-  { key: 'sleep_hours',        label: 'Sleep Duration (h)',   min: 0, max: 14, step: 0.5, description: 'Total hours slept' },
-  { key: 'soreness',           label: 'Muscle Soreness',      min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
-  { key: 'mood',               label: 'Mood',                 min: 1, max: 10, step: 1, description: '1 = very low, 10 = excellent' },
-  { key: 'stress',             label: 'Stress',               min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
-  { key: 'motivation',         label: 'Motivation',           min: 1, max: 10, step: 1, description: '1 = none, 10 = very high' },
-  { key: 'fatigue',            label: 'Fatigue',              min: 1, max: 10, step: 1, description: '1 = fresh, 10 = exhausted' },
-  { key: 'energy',             label: 'Energy Level',         min: 1, max: 10, step: 1, description: '1 = very low, 10 = very high' },
-  { key: 'rpe',                label: 'RPE (last session)',    min: 1, max: 10, step: 1, description: 'Borg CR-10 scale' },
-  { key: 'perceived_recovery', label: 'Perceived Recovery',   min: 0, max: 10, step: 1, description: '0 = not recovered, 10 = fully recovered' },
-  { key: 'life_stress',        label: 'Life Stress',          min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
-  { key: 'confidence',         label: 'Confidence',           min: 1, max: 10, step: 1, description: '1 = very low, 10 = very high' },
-  { key: 'appetite',           label: 'Appetite',             min: 1, max: 10, step: 1, description: '1 = none, 10 = very good' },
-  { key: 'joint_stiffness',    label: 'Joint Stiffness',      min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
+  { key: 'sleep_quality', label: 'Sleep Quality',   min: 1, max: 10, step: 1, description: '1 = terrible, 10 = excellent', required: true },
+  { key: 'sleep_hours',   label: 'Sleep Duration',  min: 0, max: 14, step: 0.5, unit: 'h', description: 'Total hours slept' },
+  { key: 'soreness',      label: 'Muscle Soreness',  min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme', required: true },
+  { key: 'mood',          label: 'Mood',              min: 1, max: 10, step: 1, description: '1 = very low, 10 = excellent', required: true },
+  { key: 'stress',        label: 'Stress',            min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme', required: true },
+  { key: 'energy',        label: 'Energy Level',      min: 1, max: 10, step: 1, description: '1 = very low, 10 = very high', required: true },
+  { key: 'motivation',    label: 'Motivation',        min: 1, max: 10, step: 1, description: '1 = none, 10 = very high' },
+  { key: 'fatigue',       label: 'Fatigue',            min: 1, max: 10, step: 1, description: '1 = fresh, 10 = exhausted' },
+  { key: 'rpe',           label: 'RPE (last session)', min: 1, max: 10, step: 1, description: 'Borg CR-10 scale' },
+  { key: 'life_stress',   label: 'Life Stress',        min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
+  { key: 'perceived_recovery', label: 'Perceived Recovery', min: 0, max: 10, step: 1, description: '0 = not recovered, 10 = fully recovered' },
+  { key: 'confidence',    label: 'Confidence',          min: 1, max: 10, step: 1, description: '1 = very low, 10 = very high' },
+  { key: 'appetite',      label: 'Appetite',            min: 1, max: 10, step: 1, description: '1 = none, 10 = very good' },
+  { key: 'joint_stiffness', label: 'Joint Stiffness',  min: 1, max: 10, step: 1, description: '1 = none, 10 = extreme' },
 ]

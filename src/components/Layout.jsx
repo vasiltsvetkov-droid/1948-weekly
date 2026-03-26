@@ -6,7 +6,8 @@ import NeuralBackground from './NeuralBackground'
 const navItems = [
   { to: '/', label: 'Microcycle', icon: '⊞' },
   { to: '/mesocycle', label: 'Mesocycle', icon: '◈' },
-  { to: '/upload', label: 'Upload', icon: '↑' },
+  { to: '/upload', label: 'GPS Upload', icon: '↑' },
+  { to: '/data-hub', label: 'Data Hub', icon: '◉' },
   { to: '/tools', label: 'Analysis Tools', icon: '◎' },
   { to: '/performance-testing', label: 'Perf. Testing', icon: '⊕' },
   { to: '/settings', label: 'Settings', icon: '⚙' },

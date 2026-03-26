@@ -11,6 +11,7 @@ import Settings from './pages/Settings'
 import History from './pages/History'
 import AnalysisTools from './pages/AnalysisTools'
 import PerformanceTesting from './pages/PerformanceTesting'
+import DataHub from './pages/DataHub'
 
 export default function App() {
   return (
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/mesocycle" element={<Mesocycle />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/data-hub" element={<DataHub />} />
           <Route path="/player/:id" element={<PlayerDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/history/:id" element={<History />} />

@@ -1,9 +1,5 @@
 /**
  * Barin Sports 360 — Engine barrel export
- *
- * Usage:
- *   import { compute360 } from '@/lib/barin360'
- *   import { adaptGPSAggregate, adaptWellnessEntry } from '@/lib/barin360'
  */
 
 // Core orchestrator
@@ -22,8 +18,14 @@ export { applyCrossIndexMods } from './crossIndex.js'
 
 // Adapters
 export { adaptGPSAggregate, adaptGPSSessions } from './adapters/gpsAdapter.js'
-export { adaptWellnessEntry, WELLNESS_FIELDS, buildWellnessHeaderMap, parseWellnessCSVRow } from './adapters/wellnessAdapter.js'
-export { adaptPractitionerTest, adaptMultipleTests, TEST_TYPES } from './adapters/practitionerAdapter.js'
+export {
+  adaptWellnessEntry, parseBarinWellnessJSON,
+  WELLNESS_FIELDS, buildWellnessHeaderMap, parseWellnessCSVRow
+} from './adapters/wellnessAdapter.js'
+export {
+  adaptPractitionerTest, adaptMultipleTests, TEST_TYPES,
+  autoDetectAndParse, mergePlayerParams,
+} from './adapters/practitionerAdapter.js'
 
 // Legacy bridge
 export { toLegacyAggregate, toIndexSnapshot, toBaselineRows } from './legacyBridge.js'
